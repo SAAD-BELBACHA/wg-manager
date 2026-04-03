@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}WG einrichten – WG Manager{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Willkommen, {{ current_user.username }}!</h1>
+  <p class="text-secondary">Du bist fast da. Erstelle eine neue WG oder tritt einer bestehenden bei.</p>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-6 col-xl-5">
+    <div class="card shadow-sm border-0">
+      <div class="card-body p-4">
+        
+        <ul class="nav nav-pills nav-fill mb-4" id="wgTab" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="pill" data-bs-target="#createTab">
+              <i class="fas fa-plus me-1"></i>Neue WG
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="pill" data-bs-target="#joinTab">
+              <i class="fas fa-door-open me-1"></i>WG beitreten
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="createTab">
+            <form method="POST" action="{{ url_for('wg_setup') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <input type="hidden" name="action" value="create"/>
+              <div class="mb-4">
+                <label class="form-label">WG-Name</label>
+                <div class="input-icon-wrap">
+                  <i class="fas fa-house input-icon"></i>
+                  <input type="text" name="wg_name" class="form-control ps-input" placeholder="z.B. Sonnenschein-WG" required/>
+                </div>
+                <small class="text-secondary mt-1 d-block" style="font-size:.78rem">Ein einzigartiger Einladungscode wird automatisch generiert.</small>
+              </div>
+              <button type="submit" class="btn btn-primary w-100 btn-lg-custom">
+                <i class="fas fa-wand-magic-sparkles me-2"></i>WG erstellen
+              </button>
+            </form>
+          </div>
+
+          <div class="tab-pane fade" id="joinTab">
+            <form method="POST" action="{{ url_for('wg_setup') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <input type="hidden" name="action" value="join"/>
+              <div class="mb-4">
+                <label class="form-label">Einladungscode</label>
+                <div class="input-icon-wrap">
+                  <i class="fas fa-key input-icon"></i>
+                  <input type="text" name="invite_code" class="form-control ps-input font-mono text-uppercase"
+                         placeholder="z.B. AB12CD34" maxlength="8" required/>
+                </div>
+                <small class="text-secondary mt-1 d-block" style="font-size:.78rem">Den Code bekommst du von deinen Mitbewohnern.</small>
+              </div>
+              <button type="submit" class="btn btn-primary w-100 btn-lg-custom">
+                <i class="fas fa-door-open me-2"></i>WG beitreten
+              </button>
+            </form>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

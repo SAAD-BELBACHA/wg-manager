@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Anmelden – WG Manager{% endblock %}
+
+{% block auth_content %}
+<div class="auth-card">
+  <div class="auth-logo">
+    <div class="auth-logo-icon"><i class="fas fa-home"></i></div>
+    <h1>WG Manager</h1>
+    <p>Melde dich in deinem Konto an</p>
+  </div>
+
+  <form method="POST" action="{{ url_for('login') }}" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <div class="mb-3">
+      <label class="form-label">E-Mail</label>
+      <div class="input-icon-wrap">
+        <i class="fas fa-envelope input-icon"></i>
+        <input type="email" name="email" class="form-control ps-input" placeholder="name@beispiel.de" required autocomplete="email"/>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Passwort</label>
+      <div class="input-icon-wrap">
+        <i class="fas fa-lock input-icon"></i>
+        <input type="password" name="password" class="form-control ps-input" placeholder="••••••••" required autocomplete="current-password"/>
+      </div>
+    </div>
+
+    <div class="mb-4 form-check">
+      <input type="checkbox" name="remember" class="form-check-input" id="remember"/>
+      <label class="form-check-label text-secondary" for="remember" style="font-size:.875rem">Angemeldet bleiben</label>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100 btn-lg-custom">
+      <i class="fas fa-right-to-bracket me-2"></i>Anmelden
+    </button>
+  </form>
+
+  <div class="auth-divider"><span>oder</span></div>
+
+  <p class="text-center mb-0" style="font-size:.875rem; color:var(--text-secondary)">
+    Noch kein Konto?
+    <a href="{{ url_for('register') }}" class="fw-semibold" style="color:var(--primary)">Jetzt registrieren</a>
+  </p>
+</div>
+{% endblock %}

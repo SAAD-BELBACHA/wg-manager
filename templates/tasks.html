@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block title %}Putzplan – {{ wg.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between flex-wrap gap-2">
+  <div>
+    <h1><i class="fas fa-broom text-violet me-2"></i>Putzplan</h1>
+    <p class="text-secondary">{{ open_tasks|length }} offene Aufgabe(n)</p>
+  </div>
+  <div class="d-flex gap-2">
+    <form method="POST" action="{{ url_for('rotate_tasks') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <button type="submit" class="btn btn-outline-primary btn-sm">
+        <i class="fas fa-rotate me-1"></i>Rotieren
+      </button>
+    </form>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+      <i class="fas fa-plus me-1"></i>Aufgabe
+    </button>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Open Tasks -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-list-check me-2 text-primary"></i>Offene Aufgaben</span>
+        <span class="badge bg-primary">{{ open_tasks|length }}</span>
+      </div>
+      <div class="card-body p-0" id="openTasksList">
+        {% if open_tasks %}
+          {% for task in open_tasks %}
+          <div class="task-row" id="task-{{ task.id }}">
+            <button class="task-check-btn" onclick="toggleTask({{ task.id }}, this)">
+              <i class="fas fa-check"></i>
+            </button>
+            <div class="task-info">
+              <div class="task-title-text">{{ task.title }}</div>
+              <div class="task-meta-row">
+                {% if task.assigned_user %}
+                <span class="meta-chip">
+                  <span class="user-avatar xs me-1" style="background:{{ task.assigned_user.avatar_color }}">
+                    {{ task.assigned_user.username[0].upper() }}
+                  </span>
+                  {{ task.assigned_user.username }}
+                </span>
+                {% else %}
+                <span class="meta-chip" style="color:var(--text-muted)">Nicht zugewiesen</span>
+                {% endif %}
+                {% if task.due_date %}
+                <span class="meta-chip">
+                  <i class="fas fa-calendar-day fa-xs me-1"></i>{{ task.due_date.strftime('%d.%m.%Y') }}
+                </span>
+                {% endif %}
+                {% if task.description %}
+                <span class="meta-chip"><i class="fas fa-align-left fa-xs me-1"></i>{{ task.description[:40] }}</span>
+                {% endif %}
+              </div>
+            </div>
+            <form method="POST" action="{{ url_for('delete_task', tid=task.id) }}" class="ms-2">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+              <button type="submit" class="icon-btn text-secondary hover-danger" title="Löschen"
+                      onclick="return confirm('Aufgabe löschen?')">
+                <i class="fas fa-trash-can fa-xs"></i>
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="empty-state">
+          <i class="fas fa-party-horn"></i>
+          <p>Alle Aufgaben erledigt!</p>
+          <small class="text-secondary">Neue Aufgabe hinzufügen oder Aufgaben rotieren.</small>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Done Tasks -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-circle-check me-2 text-success"></i>Erledigt</span>
+        <span class="badge bg-success">{{ done_tasks|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        {% if done_tasks %}
+          {% for task in done_tasks %}
+          <div class="task-row done">
+            <div class="task-check-btn checked"><i class="fas fa-check"></i></div>
+            <div class="task-info">
+              <div class="task-title-text line-through text-secondary">{{ task.title }}</div>
+              {% if task.completed_at %}
+              <div class="task-meta-row">
+                <span class="meta-chip"><i class="fas fa-clock fa-xs me-1"></i>{{ task.completed_at.strftime('%d.%m. %H:%M') }}</span>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="empty-state">
+          <i class="fas fa-hourglass-start"></i>
+          <p>Noch nichts erledigt</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD TASK MODAL -->
+<div class="modal fade" id="addTaskModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-plus-circle text-primary me-2"></i>Neue Aufgabe</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('add_task') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Aufgabenname *</label>
+            <input type="text" name="title" class="form-control" placeholder="z.B. Küche putzen" required/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Beschreibung</label>
+            <textarea name="description" class="form-control" rows="2" placeholder="Optional..."></textarea>
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Zuweisen an</label>
+              <select name="assigned_to" class="form-select">
+                <option value="">– Niemanden –</option>
+                {% for m in members %}
+                <option value="{{ m.id }}">{{ m.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Fällig am</label>
+              <input type="date" name="due_date" class="form-control"/>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="fas fa-plus me-1"></i>Hinzufügen
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleTask(tid, btn) {
+  fetch(`/tasks/${tid}/toggle`, {method: 'POST'})
+    .then(r => r.json()).then(d => {
+      const row = document.getElementById(`task-${tid}`);
+      if (d.completed) {
+        row.classList.add('done');
+        btn.classList.add('checked');
+        row.querySelector('.task-title-text').classList.add('line-through', 'text-secondary');
+        setTimeout(() => window.animateRemove ? window.animateRemove(row) : row.remove(), 600);
+      }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard – {{ wg.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Guten Tag, {{ current_user.username }}!</h1>
+  <p class="text-secondary">Hier ist deine WG-Übersicht für <strong>{{ wg.name }}</strong></p>
+</div>
+
+<!-- STAT CARDS -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card stat-indigo">
+      <div class="stat-icon"><i class="fas fa-users"></i></div>
+      <div class="stat-value">{{ members|length }}</div>
+      <div class="stat-label">Mitbewohner</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card stat-violet">
+      <div class="stat-icon"><i class="fas fa-broom"></i></div>
+      <div class="stat-value">{{ open_tasks }}</div>
+      <div class="stat-label">Offene Aufgaben</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card stat-pink">
+      <div class="stat-icon"><i class="fas fa-cart-shopping"></i></div>
+      <div class="stat-value">{{ shopping_count }}</div>
+      <div class="stat-label">Einkaufsartikel</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card stat-green">
+      <div class="stat-icon"><i class="fas fa-euro-sign"></i></div>
+      <div class="stat-value">{{ my_debts|length + owed_to_me|length }}</div>
+      <div class="stat-label">Offene Schulden</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+
+  <!-- My Tasks -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-broom text-violet me-2"></i>Meine Aufgaben</span>
+        <a href="{{ url_for('tasks') }}" class="btn btn-sm btn-outline-primary">Alle</a>
+      </div>
+      <div class="card-body p-0">
+        {% if my_tasks %}
+          {% for task in my_tasks %}
+          <div class="list-item-row">
+            <div class="li-check {% if task.completed %}checked{% endif %}" data-task-id="{{ task.id }}"
+                 style="width:22px;height:22px;border-radius:6px;border:2px solid var(--border);
+                        background:#fff;cursor:pointer;display:flex;align-items:center;
+                        justify-content:center;color:transparent;flex-shrink:0;transition:all .2s">
+              <i class="fas fa-check fa-xs"></i>
+            </div>
+            <div class="li-body">
+              <div class="li-title {% if task.completed %}line-through{% endif %}">{{ task.title }}</div>
+              {% if task.due_date %}
+              <div class="li-meta"><i class="fas fa-calendar-day fa-xs me-1"></i>{{ task.due_date.strftime('%d.%m.%Y') }}</div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            <i class="fas fa-party-horn"></i>
+            <p>Keine offenen Aufgaben</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Debts -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-scale-balanced text-orange me-2"></i>Schulden</span>
+        <a href="{{ url_for('finance') }}" class="btn btn-sm btn-outline-primary">Details</a>
+      </div>
+      <div class="card-body">
+        {% if my_debts %}
+          <div class="section-label mb-2">Du schuldest</div>
+          {% for d in my_debts %}
+          <div class="debt-chip debt">
+            <div class="d-flex align-items-center gap-2">
+              <div class="user-avatar xs" style="background:{{ d.to_user.avatar_color }}">
+                {{ d.to_user.username[0].upper() }}
+              </div>
+              <span style="font-size:.85rem">{{ d.to_user.username }}</span>
+            </div>
+            <span class="debt-amount text-danger">–{{ "%.2f"|format(d.amount) }} €</span>
+          </div>
+          {% endfor %}
+        {% endif %}
+
+        {% if owed_to_me %}
+          <div class="section-label mt-3 mb-2">Du bekommst</div>
+          {% for d in owed_to_me %}
+          <div class="debt-chip credit">
+            <div class="d-flex align-items-center gap-2">
+              <div class="user-avatar xs" style="background:{{ d.from_user.avatar_color }}">
+                {{ d.from_user.username[0].upper() }}
+              </div>
+              <span style="font-size:.85rem">{{ d.from_user.username }}</span>
+            </div>
+            <span class="debt-amount text-success">+{{ "%.2f"|format(d.amount) }} €</span>
+          </div>
+          {% endfor %}
+        {% endif %}
+
+        {% if not my_debts and not owed_to_me %}
+        <div class="empty-state">
+          <i class="fas fa-hand-holding-heart"></i>
+          <p>Alles ausgeglichen!</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Members -->
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-users me-2 text-primary"></i>Mitbewohner
+      </div>
+      <div class="card-body">
+        <div class="members-list">
+          {% for m in members %}
+          <div class="member-chip">
+            <div class="user-avatar sm" style="background:{{ m.avatar_color }}">{{ m.username[0].upper() }}</div>
+            <span>{{ m.username }}</span>
+            {% if m.id == wg.created_by %}
+            <span class="badge bg-primary-soft text-primary ms-auto" style="font-size:.68rem">Admin</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="invite-box mt-3">
+          <div class="invite-label"><i class="fas fa-link me-1"></i>Einladungscode</div>
+          <div class="invite-code">{{ wg.invite_code }}</div>
+          <small class="text-secondary" style="font-size:.75rem">Klicke zum Kopieren · Teile mit deinen Mitbewohnern</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Expenses -->
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-receipt me-2 text-green"></i>Letzte Ausgaben</span>
+        <a href="{{ url_for('finance') }}" class="btn btn-sm btn-outline-primary">Alle</a>
+      </div>
+      <div class="card-body p-0">
+        {% if recent_expenses %}
+          {% for e in recent_expenses %}
+          <div class="list-item-row">
+            <div class="expense-dot" style="background:{{ e.paid_by_user.avatar_color }}20; color:{{ e.paid_by_user.avatar_color }}">
+              <i class="fas fa-receipt fa-xs"></i>
+            </div>
+            <div class="li-body">
+              <div class="li-title">{{ e.title }}</div>
+              <div class="li-meta">
+                <span class="user-avatar xs me-1" style="background:{{ e.paid_by_user.avatar_color }}">{{ e.paid_by_user.username[0].upper() }}</span>
+                {{ e.paid_by_user.username }} · {{ e.created_at.strftime('%d.%m') }}
+              </div>
+            </div>
+            <div class="expense-amount">{{ "%.2f"|format(e.amount) }} €</div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            <i class="fas fa-receipt"></i>
+            <p>Noch keine Ausgaben</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.li-check[data-task-id]').forEach(btn => {
+  btn.style.cssText += ';width:22px;height:22px;border-radius:6px;border:2px solid #e2e8f0;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;color:transparent;flex-shrink:0;transition:all .2s';
+  btn.addEventListener('click', function() {
+    const tid = this.dataset.taskId;
+    fetch(`/tasks/${tid}/toggle`, {method:'POST'})
+      .then(r => r.json()).then(d => {
+        if (d.completed) {
+          this.style.background = '#22c55e';
+          this.style.borderColor = '#22c55e';
+          this.style.color = '#fff';
+          const title = this.parentElement.querySelector('.li-title');
+          title.classList.add('line-through');
+        }
+      });
+  });
+});
+</script>
+{% endblock %}

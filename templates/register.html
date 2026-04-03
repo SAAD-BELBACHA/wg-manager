@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Registrieren – WG Manager{% endblock %}
+
+{% block auth_content %}
+<div class="auth-card">
+  <div class="auth-logo">
+    <div class="auth-logo-icon"><i class="fas fa-user-plus"></i></div>
+    <h1>Konto erstellen</h1>
+    <p>Werde Teil der WG-Community</p>
+  </div>
+
+  <form method="POST" action="{{ url_for('register') }}" novalidate>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <div class="mb-3">
+      <label class="form-label">Benutzername</label>
+      <div class="input-icon-wrap">
+        <i class="fas fa-user input-icon"></i>
+        <input type="text" name="username" class="form-control ps-input" placeholder="MitbewohnerMax" required autocomplete="username"/>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">E-Mail</label>
+      <div class="input-icon-wrap">
+        <i class="fas fa-envelope input-icon"></i>
+        <input type="email" name="email" class="form-control ps-input" placeholder="name@beispiel.de" required autocomplete="email"/>
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Passwort</label>
+      <div class="input-icon-wrap">
+        <i class="fas fa-lock input-icon"></i>
+        <input type="password" name="password" class="form-control ps-input" placeholder="Mindestens 6 Zeichen" required autocomplete="new-password"/>
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <label class="form-label">Passwort bestätigen</label>
+      <div class="input-icon-wrap">
+        <i class="fas fa-lock input-icon"></i>
+        <input type="password" name="confirm_password" class="form-control ps-input" placeholder="Passwort wiederholen" required autocomplete="new-password"/>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100 btn-lg-custom">
+      <i class="fas fa-user-plus me-2"></i>Konto erstellen
+    </button>
+  </form>
+
+  <div class="auth-divider"><span>oder</span></div>
+
+  <p class="text-center mb-0" style="font-size:.875rem; color:var(--text-secondary)">
+    Bereits registriert?
+    <a href="{{ url_for('login') }}" class="fw-semibold" style="color:var(--primary)">Jetzt anmelden</a>
+  </p>
+</div>
+{% endblock %}

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="csrf-token" content="{{ csrf_token() }}"/>
+  <title>{% block title %}WG Manager{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"/>
+</head>
+<body>
+
+{% if current_user.is_authenticated %}
+  {% set wg = current_user.get_wg() %}
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <div class="wrapper">
+
+    <!-- ═══ SIDEBAR ═══ -->
+    <nav class="sidebar" id="sidebar">
+
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <div class="logo-icon-sm"><i class="fas fa-home"></i></div>
+          <span>WG Manager</span>
+        </div>
+        <button class="icon-btn d-md-none" id="sidebarClose" style="color:rgba(255,255,255,.5)">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      {% if wg %}
+      <div class="sidebar-wg-card">
+        <div class="wg-icon"><i class="fas fa-users"></i></div>
+        <div class="wg-info-text">
+          <div class="wg-name-text">{{ wg.name }}</div>
+          <div class="wg-code-text"><i class="fas fa-key fa-xs me-1"></i>{{ wg.invite_code }}</div>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="sidebar-section-label">Navigation</div>
+      <ul class="sidebar-nav">
+        <li>
+          <a class="snav-link {% if request.endpoint == 'dashboard' %}active{% endif %}"
+             href="{{ url_for('dashboard') }}">
+            <span class="snav-icon"><i class="fas fa-chart-pie"></i></span>
+            <span>Dashboard</span>
+          </a>
+        </li>
+        {% if wg %}
+        <li>
+          <a class="snav-link {% if request.endpoint == 'tasks' %}active{% endif %}"
+             href="{{ url_for('tasks') }}">
+            <span class="snav-icon"><i class="fas fa-broom"></i></span>
+            <span>Putzplan</span>
+          </a>
+        </li>
+        <li>
+          <a class="snav-link {% if request.endpoint == 'shopping' %}active{% endif %}"
+             href="{{ url_for('shopping') }}">
+            <span class="snav-icon"><i class="fas fa-cart-shopping"></i></span>
+            <span>Einkaufsliste</span>
+          </a>
+        </li>
+        <li>
+          <a class="snav-link {% if request.endpoint == 'finance' %}active{% endif %}"
+             href="{{ url_for('finance') }}">
+            <span class="snav-icon"><i class="fas fa-euro-sign"></i></span>
+            <span>Finanzen</span>
+          </a>
+        </li>
+        <li>
+          <a class="snav-link {% if request.endpoint == 'feed' %}active{% endif %}"
+             href="{{ url_for('feed') }}">
+            <span class="snav-icon"><i class="fas fa-thumbtack"></i></span>
+            <span>Pinnwand</span>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="sf-user">
+          <div class="user-avatar" style="background:{{ current_user.avatar_color }}">
+            {{ current_user.username[0].upper() }}
+          </div>
+          <div class="sf-user-info">
+            <div class="sf-username">{{ current_user.username }}</div>
+            <div class="sf-email">{{ current_user.email }}</div>
+          </div>
+        </div>
+        <a href="{{ url_for('logout') }}" class="logout-btn" title="Abmelden">
+          <i class="fas fa-right-from-bracket"></i>
+        </a>
+      </div>
+    </nav>
+
+    <!-- ═══ MAIN ═══ -->
+    <div class="main-content">
+
+      <!-- Mobile topbar -->
+      <div class="mobile-topbar d-flex d-md-none">
+        <button class="icon-btn" id="sidebarOpen"><i class="fas fa-bars"></i></button>
+        <span class="mobile-brand">WG Manager</span>
+        <div class="user-avatar sm" style="background:{{ current_user.avatar_color }}">
+          {{ current_user.username[0].upper() }}
+        </div>
+      </div>
+
+      <!-- Flash messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-wrap">
+          {% for cat, msg in messages %}
+          <div class="alert alert-{{ 'danger' if cat == 'error' else cat }} alert-dismissible fade show mb-2" role="alert">
+            <i class="fas fa-{% if cat=='success'%}circle-check{% elif cat=='danger'%}circle-exclamation{% elif cat=='warning'%}triangle-exclamation{% else %}circle-info{% endif %} me-2"></i>
+            {{ msg }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+{% else %}
+  <!-- ═══ AUTH LAYOUT ═══ -->
+  <div class="auth-bg">
+    <div class="auth-messages">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+      {% endwith %}
+    </div>
+    {% block auth_content %}{% endblock %}
+  </div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

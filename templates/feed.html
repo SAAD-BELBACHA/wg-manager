@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+{% block title %}Pinnwand – {{ wg.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="fas fa-thumbtack text-orange me-2"></i>Pinnwand</h1>
+  <p class="text-secondary">Fotos, Sprachnachrichten & Neuigkeiten aus der WG</p>
+</div>
+
+<div class="row g-3">
+
+  <!-- New Post -->
+  <div class="col-lg-8 offset-lg-2">
+    <div class="card mb-2" id="newPostCard">
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('feed_post') }}" enctype="multipart/form-data" id="feedForm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <input type="hidden" name="file" id="audioFileInput"/>
+
+          <div class="d-flex gap-3 mb-3">
+            <div class="user-avatar flex-shrink-0" style="background:{{ current_user.avatar_color }}">
+              {{ current_user.username[0].upper() }}
+            </div>
+            <textarea name="content" id="postContent" class="form-control"
+                      placeholder="Was gibt's Neues in der WG? Schreib etwas…"
+                      rows="2" style="resize:none;border-radius:12px"></textarea>
+          </div>
+
+          <!-- File preview area -->
+          <div id="filePreview" class="mb-3" style="display:none"></div>
+
+          <!-- Audio recorder preview -->
+          <div id="audioPreview" class="mb-3" style="display:none">
+            <div class="audio-preview-box">
+              <i class="fas fa-microphone text-danger me-2"></i>
+              <span id="recStatus">Bereit</span>
+              <audio id="audioPlayback" controls class="ms-auto" style="height:32px;display:none"></audio>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex gap-2">
+              <!-- Image upload -->
+              <label class="feed-action-btn" title="Foto hochladen">
+                <i class="fas fa-image text-primary"></i>
+                <span class="d-none d-sm-inline">Foto</span>
+                <input type="file" id="imageFileInput" name="file" accept="image/*" style="display:none" onchange="previewImage(this)"/>
+              </label>
+
+              <!-- Audio upload -->
+              <label class="feed-action-btn" title="Audio hochladen">
+                <i class="fas fa-music text-violet"></i>
+                <span class="d-none d-sm-inline">Audio</span>
+                <input type="file" id="audioUploadInput" name="file" accept="audio/*" style="display:none" onchange="previewAudioFile(this)"/>
+              </label>
+
+              <!-- Record voice -->
+              <button type="button" class="feed-action-btn" id="recordBtn" onclick="toggleRecording()" title="Sprachnachricht aufnehmen">
+                <i class="fas fa-microphone text-danger"></i>
+                <span class="d-none d-sm-inline">Aufnehmen</span>
+              </button>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-sm px-4" id="postBtn">
+              <i class="fas fa-paper-plane me-1"></i>Posten
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Feed Posts -->
+    {% if posts %}
+      {% for post in posts %}
+      <div class="feed-post-card card mb-3">
+        <div class="card-body">
+          <div class="d-flex align-items-start gap-3">
+            <div class="user-avatar flex-shrink-0" style="background:{{ post.author.avatar_color }}">
+              {{ post.author.username[0].upper() }}
+            </div>
+            <div class="flex-grow-1 min-w-0">
+              <div class="d-flex align-items-center justify-content-between mb-1">
+                <div>
+                  <span class="fw-bold" style="font-size:.9rem">{{ post.author.username }}</span>
+                  <span class="text-muted ms-2" style="font-size:.75rem">
+                    <i class="fas fa-clock fa-xs me-1"></i>{{ post.created_at.strftime('%d.%m.%Y %H:%M') }}
+                  </span>
+                </div>
+                {% if post.user_id == current_user.id %}
+                <form method="POST" action="{{ url_for('delete_feed_post', pid=post.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                  <button type="submit" class="icon-btn text-secondary hover-danger"
+                          onclick="return confirm('Beitrag löschen?')" title="Löschen">
+                    <i class="fas fa-trash-can fa-xs"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+
+              {% if post.content %}
+              <p class="mb-2" style="font-size:.9rem; line-height:1.6; white-space:pre-wrap">{{ post.content }}</p>
+              {% endif %}
+
+              {% if post.file_name %}
+                {% if post.file_type == 'image' %}
+                <div class="feed-media-wrap">
+                  <img src="{{ url_for('uploaded_file', filename=post.file_name) }}"
+                       alt="Bild" class="feed-image"
+                       onclick="openLightbox(this.src)"/>
+                </div>
+                {% elif post.file_type == 'audio' %}
+                <div class="feed-audio-wrap">
+                  <i class="fas fa-waveform text-violet me-2"></i>
+                  <audio controls class="feed-audio-player">
+                    <source src="{{ url_for('uploaded_file', filename=post.file_name) }}">
+                    Dein Browser unterstützt kein Audio.
+                  </audio>
+                </div>
+                {% endif %}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+    <div class="card">
+      <div class="empty-state">
+        <i class="fas fa-thumbtack"></i>
+        <p>Die Pinnwand ist noch leer</p>
+        <small class="text-secondary">Sei der Erste und schreibe etwas!</small>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;display:none;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(4px)">
+  <img id="lightboxImg" src="" alt="" style="max-width:92vw;max-height:90vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.5)"/>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Image preview ─────────────────────────── */
+function previewImage(input) {
+  if (!input.files || !input.files[0]) return;
+  clearAudio();
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('filePreview');
+    preview.style.display = 'block';
+    preview.innerHTML = `
+      <div class="feed-media-wrap" style="position:relative;display:inline-block">
+        <img src="${e.target.result}" class="feed-image"/>
+        <button type="button" onclick="clearFile()" class="feed-clear-btn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>`;
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function previewAudioFile(input) {
+  if (!input.files || !input.files[0]) return;
+  clearRecording();
+  const url = URL.createObjectURL(input.files[0]);
+  const preview = document.getElementById('filePreview');
+  preview.style.display = 'block';
+  preview.innerHTML = `
+    <div class="feed-audio-wrap">
+      <i class="fas fa-music text-violet me-2"></i>
+      <audio controls class="feed-audio-player"><source src="${url}"></audio>
+      <button type="button" onclick="clearFile()" class="icon-btn text-secondary hover-danger ms-2">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>`;
+}
+
+function clearFile() {
+  document.getElementById('filePreview').style.display = 'none';
+  document.getElementById('filePreview').innerHTML = '';
+  document.getElementById('imageFileInput').value = '';
+  document.getElementById('audioUploadInput').value = '';
+}
+
+/* ── Voice recorder ─────────────────────────── */
+let mediaRecorder = null;
+let audioChunks   = [];
+let isRecording   = false;
+let recordedBlob  = null;
+let timerInterval = null;
+let recordSeconds = 0;
+
+async function toggleRecording() {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    await startRecording();
+  }
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      recordedBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      const url    = URL.createObjectURL(recordedBlob);
+      const audio  = document.getElementById('audioPlayback');
+      audio.src    = url;
+      audio.style.display = 'block';
+      document.getElementById('recStatus').textContent = 'Aufnahme bereit zum Senden';
+      // Inject into form as file
+      injectAudioFile(recordedBlob);
+      stream.getTracks().forEach(t => t.stop());
+    };
+    mediaRecorder.start();
+    isRecording = true;
+    recordSeconds = 0;
+    clearFile();
+
+    const preview = document.getElementById('audioPreview');
+    preview.style.display = 'block';
+    document.getElementById('audioPlayback').style.display = 'none';
+    document.getElementById('recStatus').textContent = '● 0:00 aufnehmen…';
+    document.getElementById('recordBtn').innerHTML = '<i class="fas fa-stop text-danger"></i><span class="d-none d-sm-inline ms-1">Stopp</span>';
+    document.getElementById('recordBtn').classList.add('recording');
+
+    timerInterval = setInterval(() => {
+      recordSeconds++;
+      const m = Math.floor(recordSeconds / 60);
+      const s = String(recordSeconds % 60).padStart(2, '0');
+      document.getElementById('recStatus').textContent = `● ${m}:${s} aufnehmen…`;
+    }, 1000);
+  } catch(err) {
+    alert('Mikrofon-Zugriff verweigert: ' + err.message);
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  clearInterval(timerInterval);
+  isRecording = false;
+  document.getElementById('recordBtn').innerHTML = '<i class="fas fa-microphone text-danger"></i><span class="d-none d-sm-inline ms-1">Aufnehmen</span>';
+  document.getElementById('recordBtn').classList.remove('recording');
+}
+
+function injectAudioFile(blob) {
+  const file = new File([blob], 'sprachnachricht.webm', { type: 'audio/webm' });
+  const dt   = new DataTransfer();
+  dt.items.add(file);
+  // Replace the image input with audio — use audio upload input
+  const inp = document.getElementById('audioUploadInput');
+  inp.files = dt.files;
+}
+
+function clearRecording() {
+  recordedBlob = null;
+  document.getElementById('audioPreview').style.display = 'none';
+  document.getElementById('audioPlayback').style.display = 'none';
+  document.getElementById('audioPlayback').src = '';
+  document.getElementById('audioUploadInput').value = '';
+}
+
+function clearAudio() {
+  if (isRecording) stopRecording();
+  clearRecording();
+}
+
+/* ── Lightbox ───────────────────────────────── */
+function openLightbox(src) {
+  const lb = document.getElementById('lightbox');
+  document.getElementById('lightboxImg').src = src;
+  lb.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeLightbox() {
+  document.getElementById('lightbox').style.display = 'none';
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+/* ── Auto-resize textarea ───────────────────── */
+const ta = document.getElementById('postContent');
+if (ta) {
+  ta.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+  });
+}
+</script>
+{% endblock %}

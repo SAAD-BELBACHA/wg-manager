@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}Finanzen – {{ wg.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between flex-wrap gap-2">
+  <div>
+    <h1><i class="fas fa-euro-sign text-green me-2"></i>Finanzen</h1>
+    <p class="text-secondary">Gesamt ausgegeben: <strong>{{ "%.2f"|format(total_expenses) }} €</strong></p>
+  </div>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addExpenseModal">
+    <i class="fas fa-plus me-1"></i>Ausgabe
+  </button>
+</div>
+
+<div class="row g-3">
+
+  <!-- Debts Summary -->
+  <div class="col-lg-5">
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="fas fa-scale-balanced me-2 text-orange"></i>Schuldenübersicht
+      </div>
+      <div class="card-body">
+        {% if debts %}
+          {% for d in debts %}
+          <div class="debt-row {% if d.from_user.id == current_user.id %}my-debt{% elif d.to_user.id == current_user.id %}my-credit{% endif %}">
+            <div class="debt-users">
+              <div class="user-avatar sm" style="background:{{ d.from_user.avatar_color }}">
+                {{ d.from_user.username[0].upper() }}
+              </div>
+              <div class="debt-arrow"><i class="fas fa-arrow-right fa-sm text-secondary"></i></div>
+              <div class="user-avatar sm" style="background:{{ d.to_user.avatar_color }}">
+                {{ d.to_user.username[0].upper() }}
+              </div>
+              <div class="debt-names ms-1">
+                <span class="fw-semibold">{{ d.from_user.username }}</span>
+                <span class="text-secondary mx-1" style="font-size:.78rem">schuldet</span>
+                <span class="fw-semibold">{{ d.to_user.username }}</span>
+              </div>
+            </div>
+            <div class="debt-amt {% if d.from_user.id == current_user.id %}text-danger{% else %}text-success{% endif %}">
+              {{ "%.2f"|format(d.amount) }} €
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="empty-state">
+          <i class="fas fa-handshake"></i>
+          <p>Alles ausgeglichen!</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Member Stats -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-chart-bar me-2 text-primary"></i>Pro Person
+      </div>
+      <div class="card-body p-0">
+        {% set member_totals = {} %}
+        {% for e in expenses %}
+          {% if e.paid_by_user %}
+            {% set _ = member_totals.update({e.paid_by_user.username: member_totals.get(e.paid_by_user.username, 0) + e.amount}) %}
+          {% endif %}
+        {% endfor %}
+        {% for m in members %}
+        {% set paid = member_totals.get(m.username, 0) %}
+        <div class="list-item-row">
+          <div class="user-avatar sm" style="background:{{ m.avatar_color }}">{{ m.username[0].upper() }}</div>
+          <div class="li-body">
+            <div class="li-title">{{ m.username }}</div>
+            <div class="progress mt-1" style="height:5px">
+              {% set pct = ((paid / total_expenses) * 100) if total_expenses else 0 %}
+              <div class="progress-bar" style="width:{{ pct }}%; background:{{ m.avatar_color }}"></div>
+            </div>
+          </div>
+          <div class="text-end ms-3">
+            <div class="fw-bold" style="font-size:.9rem">{{ "%.2f"|format(paid) }} €</div>
+            <small class="text-secondary">bezahlt</small>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Expense List -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-receipt me-2 text-primary"></i>Alle Ausgaben</span>
+        <span class="badge bg-primary">{{ expenses|length }}</span>
+      </div>
+      <div class="card-body p-0">
+        {% if expenses %}
+          {% for e in expenses %}
+          <div class="expense-row">
+            <div class="expense-icon-dot" style="background:{{ e.paid_by_user.avatar_color }}20; color:{{ e.paid_by_user.avatar_color }}">
+              <i class="fas fa-receipt"></i>
+            </div>
+            <div class="li-body">
+              <div class="li-title">{{ e.title }}</div>
+              <div class="li-meta">
+                <span class="user-avatar xs me-1" style="background:{{ e.paid_by_user.avatar_color }}">
+                  {{ e.paid_by_user.username[0].upper() }}
+                </span>
+                {{ e.paid_by_user.username }} hat bezahlt
+                <span class="mx-1">·</span>
+                {{ e.created_at.strftime('%d.%m.%Y') }}
+                {% if members|length > 0 %}
+                <span class="mx-1">·</span>
+                Je {{ "%.2f"|format(e.amount / members|length) }} €/Person
+                {% endif %}
+              </div>
+            </div>
+            <div class="expense-right">
+              <div class="expense-total">{{ "%.2f"|format(e.amount) }} €</div>
+              <form method="POST" action="{{ url_for('delete_expense', eid=e.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <button type="submit" class="icon-btn text-secondary hover-danger"
+                        onclick="return confirm('Ausgabe löschen?')" title="Löschen">
+                  <i class="fas fa-trash-can fa-xs"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="empty-state">
+          <i class="fas fa-receipt"></i>
+          <p>Noch keine Ausgaben eingetragen</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD EXPENSE MODAL -->
+<div class="modal fade" id="addExpenseModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-plus-circle text-primary me-2"></i>Neue Ausgabe</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{{ url_for('add_expense') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Beschreibung *</label>
+            <input type="text" name="title" class="form-control" placeholder="z.B. Supermarkt Einkauf" required/>
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Betrag (€) *</label>
+              <div class="input-icon-wrap">
+                <i class="fas fa-euro-sign input-icon"></i>
+                <input type="number" name="amount" step="0.01" min="0.01" class="form-control ps-input"
+                       placeholder="0.00" required/>
+              </div>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Bezahlt von</label>
+              <select name="paid_by" class="form-select">
+                {% for m in members %}
+                <option value="{{ m.id }}" {% if m.id == current_user.id %}selected{% endif %}>
+                  {{ m.username }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="alert alert-info mt-3 mb-0 py-2" style="font-size:.82rem">
+            <i class="fas fa-info-circle me-2"></i>
+            Der Betrag wird automatisch gleich auf alle {{ members|length }} Mitbewohner aufgeteilt.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="submit" class="btn btn-primary px-4">
+            <i class="fas fa-plus me-1"></i>Ausgabe eintragen
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

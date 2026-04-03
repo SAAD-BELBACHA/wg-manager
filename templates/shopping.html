@@ -1,0 +1,201 @@
+{% extends 'base.html' %}
+{% block title %}Einkaufsliste – {{ wg.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between flex-wrap gap-2">
+  <div>
+    <h1><i class="fas fa-cart-shopping text-pink me-2"></i>Einkaufsliste</h1>
+    <p class="text-secondary">{{ pending|length }} Artikel noch zu kaufen</p>
+  </div>
+  {% if done %}
+  <form method="POST" action="{{ url_for('clear_done_shopping') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <button type="submit" class="btn btn-outline-secondary btn-sm">
+      <i class="fas fa-trash me-1"></i>Erledigt löschen
+    </button>
+  </form>
+  {% endif %}
+</div>
+
+<!-- Quick Add -->
+<div class="card mb-3">
+  <div class="card-body">
+    <form id="quickAddForm" class="d-flex gap-2 flex-wrap align-items-end">
+      <div class="flex-grow-1">
+        <label class="form-label mb-1">Artikel</label>
+        <input type="text" id="itemName" class="form-control" placeholder="z.B. Milch, Brot…" required/>
+      </div>
+      <div style="min-width:110px">
+        <label class="form-label mb-1">Menge</label>
+        <input type="text" id="itemQty" class="form-control" placeholder="z.B. 2x"/>
+      </div>
+      <button type="submit" class="btn btn-primary mb-0">
+        <i class="fas fa-plus me-1"></i>Hinzufügen
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Pending Items -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-list-ul me-2 text-primary"></i>Zu kaufen</span>
+        <span class="badge bg-primary" id="pendingCount">{{ pending|length }}</span>
+      </div>
+      <div class="card-body p-0" id="pendingList">
+        {% for item in pending %}
+        <div class="shop-row" id="shop-{{ item.id }}">
+          <button class="shop-check-btn" onclick="toggleShop({{ item.id }}, this)">
+            <i class="fas fa-check"></i>
+          </button>
+          <div class="shop-info">
+            <div class="shop-name">{{ item.name }}</div>
+            <div class="shop-meta">
+              {% if item.quantity %}
+              <span class="meta-chip"><i class="fas fa-hashtag fa-xs me-1"></i>{{ item.quantity }}</span>
+              {% endif %}
+              <span class="meta-chip">
+                <span class="user-avatar xs me-1" style="background:{{ item.added_by_user.avatar_color }}">
+                  {{ item.added_by_user.username[0].upper() }}
+                </span>
+                {{ item.added_by_user.username }}
+              </span>
+            </div>
+          </div>
+          <button class="icon-btn text-secondary hover-danger" onclick="deleteShop({{ item.id }}, this)" title="Löschen">
+            <i class="fas fa-times fa-sm"></i>
+          </button>
+        </div>
+        {% else %}
+        <div class="empty-state" id="emptyPending">
+          <i class="fas fa-basket-shopping"></i>
+          <p>Einkaufsliste ist leer</p>
+          <small class="text-secondary">Füge einen Artikel oben hinzu!</small>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Done Items -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-circle-check me-2 text-success"></i>Bereits gekauft</span>
+        <span class="badge bg-success">{{ done|length }}</span>
+      </div>
+      <div class="card-body p-0" id="doneList">
+        {% if done %}
+          {% for item in done %}
+          <div class="shop-row done" id="done-{{ item.id }}">
+            <button class="shop-check-btn checked" onclick="toggleShop({{ item.id }}, this)">
+              <i class="fas fa-check"></i>
+            </button>
+            <div class="shop-info">
+              <div class="shop-name line-through text-secondary">{{ item.name }}</div>
+              {% if item.quantity %}
+              <div class="shop-meta"><span class="meta-chip">{{ item.quantity }}</span></div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+        <div class="empty-state">
+          <i class="fas fa-bag-shopping"></i>
+          <p>Noch nichts eingekauft</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('quickAddForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const name = document.getElementById('itemName').value.trim();
+  const qty  = document.getElementById('itemQty').value.trim();
+  if (!name) return;
+
+  const formData = new FormData();
+  formData.append('name', name);
+  formData.append('quantity', qty);
+
+  fetch('/shopping/add', {
+    method: 'POST',
+    headers: {'X-Requested-With': 'XMLHttpRequest'},
+    body: formData
+  }).then(r => r.json()).then(d => {
+    if (d.success) {
+      addItemToDOM(d);
+      document.getElementById('itemName').value = '';
+      document.getElementById('itemQty').value  = '';
+      updateCount(1);
+    }
+  });
+});
+
+function addItemToDOM(d) {
+  const empty = document.getElementById('emptyPending');
+  if (empty) empty.remove();
+
+  const html = `
+    <div class="shop-row" id="shop-${d.id}" style="animation:fadeInUp .3s ease">
+      <button class="shop-check-btn" onclick="toggleShop(${d.id}, this)">
+        <i class="fas fa-check"></i>
+      </button>
+      <div class="shop-info">
+        <div class="shop-name">${escHtml(d.name)}</div>
+        <div class="shop-meta">
+          ${d.quantity ? `<span class="meta-chip"><i class="fas fa-hashtag fa-xs me-1"></i>${escHtml(d.quantity)}</span>` : ''}
+          <span class="meta-chip">
+            <span class="user-avatar xs me-1" style="background:${d.avatar_color}">${d.username[0].toUpperCase()}</span>
+            ${escHtml(d.username)}
+          </span>
+        </div>
+      </div>
+      <button class="icon-btn text-secondary hover-danger" onclick="deleteShop(${d.id}, this)" title="Löschen">
+        <i class="fas fa-times fa-sm"></i>
+      </button>
+    </div>`;
+  document.getElementById('pendingList').insertAdjacentHTML('afterbegin', html);
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toggleShop(id, btn) {
+  fetch(`/shopping/${id}/toggle`, {method: 'POST'})
+    .then(r => r.json()).then(d => {
+      const row = document.getElementById(`shop-${id}`);
+      row.classList.toggle('done', d.completed);
+      btn.classList.toggle('checked', d.completed);
+      const name = row.querySelector('.shop-name');
+      name.classList.toggle('line-through', d.completed);
+      name.classList.toggle('text-secondary', d.completed);
+      updateCount(d.completed ? -1 : 1);
+    });
+}
+
+function deleteShop(id, btn) {
+  fetch(`/shopping/${id}/delete`, {method: 'POST'})
+    .then(r => r.json()).then(d => {
+      if (d.success) {
+        const row = document.getElementById(`shop-${id}`);
+        window.animateRemove ? window.animateRemove(row) : row.remove();
+        updateCount(-1);
+      }
+    });
+}
+
+function updateCount(delta) {
+  const badge = document.getElementById('pendingCount');
+  badge.textContent = Math.max(0, (parseInt(badge.textContent) || 0) + delta);
+}
+</script>
+{% endblock %}
