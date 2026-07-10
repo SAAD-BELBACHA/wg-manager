@@ -1,11 +1,11 @@
 declare const process: {
-  env?: Record<string, string | undefined>;
+  env: Record<string, string | undefined>;
 };
 declare const __DEV__: boolean;
 
 const DEFAULT_API_URL = 'http://127.0.0.1:5001/api/v1';
 
-export const API_URL = process.env?.EXPO_PUBLIC_API_URL || (__DEV__ ? DEFAULT_API_URL : '');
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || (__DEV__ ? DEFAULT_API_URL : '');
 
 export class ApiError extends Error {
   status: number;

@@ -1,7 +1,7 @@
 services:
   - type: web
     name: wg-manager
-    env: docker
+    runtime: docker
     plan: free
     region: frankfurt
     healthCheckPath: /
@@ -18,3 +18,16 @@ services:
         value: sqlite:////app/persistent/wg_app.db
       - key: UPLOAD_FOLDER
         value: /app/persistent/uploads
+
+  - type: web
+    name: zofri-app
+    runtime: static
+    buildCommand: cd mobile && npm ci && npm run export:web
+    staticPublishPath: mobile/dist
+    envVars:
+      - key: EXPO_PUBLIC_API_URL
+        value: https://wg-manager-r5ni.onrender.com/api/v1
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -17,6 +17,7 @@
       "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Zofri nutzt die Kamera, damit du Kassenzettel fotografieren und prüfen kannst.",
         "NSPhotoLibraryUsageDescription": "Zofri nutzt deine Fotos, damit du Kassenzettel aus der Mediathek auswählen kannst.",
         "NSPhotoLibraryAddUsageDescription": "Zofri speichert keine Bilder automatisch, kann aber ausgewählte Kassenzettel verarbeiten."
@@ -28,7 +29,10 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F7F2EA"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -36,7 +40,11 @@
       "expo-image-picker"
     ],
     "extra": {
-      "apiUrl": "http://127.0.0.1:5001/api/v1"
-    }
+      "router": {},
+      "eas": {
+        "projectId": "258bacda-0e01-4ab7-aae1-a2bb934f59c9"
+      }
+    },
+    "owner": "popo209"
   }
 }
