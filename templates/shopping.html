@@ -9,7 +9,7 @@
   </div>
   {% if done %}
   <form method="POST" action="{{ url_for('clear_done_shopping') }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
     <button type="submit" class="btn btn-outline-secondary btn-sm">
       <i class="fas fa-trash me-1"></i>Erledigt löschen
     </button>
@@ -21,13 +21,14 @@
 <div class="card mb-3">
   <div class="card-body">
     <form id="quickAddForm" class="d-flex gap-2 flex-wrap align-items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
       <div class="flex-grow-1">
         <label class="form-label mb-1">Artikel</label>
-        <input type="text" id="itemName" class="form-control" placeholder="z.B. Milch, Brot…" required/>
+        <input type="text" id="itemName" class="form-control" placeholder="z.B. Milch, Brot…" required />
       </div>
       <div style="min-width:110px">
         <label class="form-label mb-1">Menge</label>
-        <input type="text" id="itemQty" class="form-control" placeholder="z.B. 2x"/>
+        <input type="text" id="itemQty" class="form-control" placeholder="z.B. 2x" />
       </div>
       <button type="submit" class="btn btn-primary mb-0">
         <i class="fas fa-plus me-1"></i>Hinzufügen
@@ -64,7 +65,8 @@
               </span>
             </div>
           </div>
-          <button class="icon-btn text-secondary hover-danger" onclick="deleteShop({{ item.id }}, this)" title="Löschen">
+          <button class="icon-btn text-secondary hover-danger" onclick="deleteShop({{ item.id }}, this)"
+            title="Löschen">
             <i class="fas fa-times fa-sm"></i>
           </button>
         </div>
@@ -88,19 +90,19 @@
       </div>
       <div class="card-body p-0" id="doneList">
         {% if done %}
-          {% for item in done %}
-          <div class="shop-row done" id="done-{{ item.id }}">
-            <button class="shop-check-btn checked" onclick="toggleShop({{ item.id }}, this)">
-              <i class="fas fa-check"></i>
-            </button>
-            <div class="shop-info">
-              <div class="shop-name line-through text-secondary">{{ item.name }}</div>
-              {% if item.quantity %}
-              <div class="shop-meta"><span class="meta-chip">{{ item.quantity }}</span></div>
-              {% endif %}
-            </div>
+        {% for item in done %}
+        <div class="shop-row done" id="done-{{ item.id }}">
+          <button class="shop-check-btn checked" onclick="toggleShop({{ item.id }}, this)">
+            <i class="fas fa-check"></i>
+          </button>
+          <div class="shop-info">
+            <div class="shop-name line-through text-secondary">{{ item.name }}</div>
+            {% if item.quantity %}
+            <div class="shop-meta"><span class="meta-chip">{{ item.quantity }}</span></div>
+            {% endif %}
           </div>
-          {% endfor %}
+        </div>
+        {% endfor %}
         {% else %}
         <div class="empty-state">
           <i class="fas fa-bag-shopping"></i>
@@ -115,35 +117,47 @@
 
 {% block scripts %}
 <script>
-document.getElementById('quickAddForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-  const name = document.getElementById('itemName').value.trim();
-  const qty  = document.getElementById('itemQty').value.trim();
-  if (!name) return;
+  document.getElementById('quickAddForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const name = document.getElementById('itemName').value.trim();
+    const qty = document.getElementById('itemQty').value.trim();
+    const submitBtn = this.querySelector('[type="submit"]');
+    if (!name) return;
 
-  const formData = new FormData();
-  formData.append('name', name);
-  formData.append('quantity', qty);
+    const formData = new FormData(this);
+    formData.set('name', name);
+    formData.set('quantity', qty);
 
-  fetch('/shopping/add', {
-    method: 'POST',
-    headers: {'X-Requested-With': 'XMLHttpRequest'},
-    body: formData
-  }).then(r => r.json()).then(d => {
-    if (d.success) {
-      addItemToDOM(d);
-      document.getElementById('itemName').value = '';
-      document.getElementById('itemQty').value  = '';
-      updateCount(1);
-    }
+    fetch('/shopping/add', {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: formData
+    }).then(r => {
+      if (!r.ok) throw new Error('Server antwortete mit ' + r.status);
+      return r.json();
+    }).then(d => {
+      if (d && d.success) {
+        addItemToDOM(d);
+        document.getElementById('itemName').value = '';
+        document.getElementById('itemQty').value = '';
+        updateCount(1);
+      } else {
+        console.error('Unerwartete Antwort:', d);
+        alert('Fehler: Artikel wurde nicht hinzugefügt. Siehe Konsole.');
+      }
+    }).catch(err => {
+      console.error('Fehler beim Hinzufügen des Artikels:', err);
+      alert('Fehler beim Hinzufügen des Artikels. Öffne die Browser-Konsole für Details.');
+    }).finally(() => {
+      submitBtn?.classList.remove('loading');
+    });
   });
-});
 
-function addItemToDOM(d) {
-  const empty = document.getElementById('emptyPending');
-  if (empty) empty.remove();
+  function addItemToDOM(d) {
+    const empty = document.getElementById('emptyPending');
+    if (empty) empty.remove();
 
-  const html = `
+    const html = `
     <div class="shop-row" id="shop-${d.id}" style="animation:fadeInUp .3s ease">
       <button class="shop-check-btn" onclick="toggleShop(${d.id}, this)">
         <i class="fas fa-check"></i>
@@ -162,40 +176,40 @@ function addItemToDOM(d) {
         <i class="fas fa-times fa-sm"></i>
       </button>
     </div>`;
-  document.getElementById('pendingList').insertAdjacentHTML('afterbegin', html);
-}
+    document.getElementById('pendingList').insertAdjacentHTML('afterbegin', html);
+  }
 
-function escHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+  function escHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
 
-function toggleShop(id, btn) {
-  fetch(`/shopping/${id}/toggle`, {method: 'POST'})
-    .then(r => r.json()).then(d => {
-      const row = document.getElementById(`shop-${id}`);
-      row.classList.toggle('done', d.completed);
-      btn.classList.toggle('checked', d.completed);
-      const name = row.querySelector('.shop-name');
-      name.classList.toggle('line-through', d.completed);
-      name.classList.toggle('text-secondary', d.completed);
-      updateCount(d.completed ? -1 : 1);
-    });
-}
-
-function deleteShop(id, btn) {
-  fetch(`/shopping/${id}/delete`, {method: 'POST'})
-    .then(r => r.json()).then(d => {
-      if (d.success) {
+  function toggleShop(id, btn) {
+    fetch(`/shopping/${id}/toggle`, { method: 'POST' })
+      .then(r => r.json()).then(d => {
         const row = document.getElementById(`shop-${id}`);
-        window.animateRemove ? window.animateRemove(row) : row.remove();
-        updateCount(-1);
-      }
-    });
-}
+        row.classList.toggle('done', d.completed);
+        btn.classList.toggle('checked', d.completed);
+        const name = row.querySelector('.shop-name');
+        name.classList.toggle('line-through', d.completed);
+        name.classList.toggle('text-secondary', d.completed);
+        updateCount(d.completed ? -1 : 1);
+      });
+  }
 
-function updateCount(delta) {
-  const badge = document.getElementById('pendingCount');
-  badge.textContent = Math.max(0, (parseInt(badge.textContent) || 0) + delta);
-}
+  function deleteShop(id, btn) {
+    fetch(`/shopping/${id}/delete`, { method: 'POST' })
+      .then(r => r.json()).then(d => {
+        if (d.success) {
+          const row = document.getElementById(`shop-${id}`);
+          window.animateRemove ? window.animateRemove(row) : row.remove();
+          updateCount(-1);
+        }
+      });
+  }
+
+  function updateCount(delta) {
+    const badge = document.getElementById('pendingCount');
+    badge.textContent = Math.max(0, (parseInt(badge.textContent) || 0) + delta);
+  }
 </script>
 {% endblock %}

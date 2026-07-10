@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: wg-manager
+    env: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /
+    disk:
+      name: wg-manager-data
+      mountPath: /app/persistent
+      sizeGB: 1
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:////app/persistent/wg_app.db
+      - key: UPLOAD_FOLDER
+        value: /app/persistent/uploads

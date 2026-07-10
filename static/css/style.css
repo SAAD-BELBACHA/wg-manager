@@ -1067,6 +1067,26 @@ body {
   .auth-logo-icon { width: 52px; height: 52px; font-size: 1.375rem; }
 }
 
+@supports (padding: max(0px)) {
+  .sidebar {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .mobile-topbar {
+    padding-top: calc(.875rem + env(safe-area-inset-top));
+  }
+
+  .main-content {
+    padding-bottom: max(2rem, calc(2rem + env(safe-area-inset-bottom)));
+  }
+
+  @media (max-width: 767.98px) {
+    .main-content {
+      padding-bottom: max(2.5rem, calc(2.5rem + env(safe-area-inset-bottom)));
+    }
+  }
+}
+
 /* ─── Focus visible (accessibility) ─────────── */
 *:focus-visible {
   outline: 2px solid var(--primary);

@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "Zofri",
+    "slug": "zofri",
+    "scheme": "zofri",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.zofri.app",
+      "buildNumber": "1",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.zofri.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#F7F2EA"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "apiUrl": "http://127.0.0.1:5001/api/v1"
+    }
+  }
+}

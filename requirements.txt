@@ -4,3 +4,5 @@ flask-login==0.6.3
 flask-wtf>=1.2.0
 werkzeug==3.0.3
 gunicorn==22.0.0
+flask-jwt-extended==4.6.0
+flask-cors==4.0.1
