@@ -1688,12 +1688,18 @@ def api_trust_profile():
 app.register_blueprint(api, url_prefix='/api')
 app.register_blueprint(api, url_prefix='/api/v1', name='api_v1')
 
+
+def initialize_database():
+    with app.app_context():
+        db.create_all()
+
+
+initialize_database()
+
 # ──────────────────────────────────────────────
 #  ENTRY POINT
 # ──────────────────────────────────────────────
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     port = int(os.environ.get('PORT', '5001'))
     try:
         app.run(debug=True, port=port)
