@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { AppHeader } from '@/components/AppHeader';
@@ -12,11 +12,19 @@ import { MetricCard } from '@/components/MetricCard';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { MoodSummary } from '@/types/api';
-import { colors, spacing } from '@/theme/tokens';
+import { colors, radii, spacing } from '@/theme/tokens';
+
+const RATING_FIELDS: { key: 'wellbeing' | 'fairness' | 'cleanliness' | 'communication'; label: string }[] = [
+  { key: 'wellbeing', label: 'Wohlbefinden' },
+  { key: 'fairness', label: 'Fairness' },
+  { key: 'cleanliness', label: 'Sauberkeit' },
+  { key: 'communication', label: 'Kommunikation' }
+];
 
 export default function MoodScreen() {
   const { token } = useAuth();
   const [summary, setSummary] = useState<MoodSummary | null>(null);
+  const [ratings, setRatings] = useState({ wellbeing: 3, fairness: 3, cleanliness: 3, communication: 3 });
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -34,9 +42,10 @@ export default function MoodScreen() {
     await apiRequest<{ success: boolean }>('/mood-checks', {
       method: 'POST',
       token,
-      body: { wellbeing: 4, fairness: 4, cleanliness: 3, communication: 4, comment, anonymous: true }
+      body: { ...ratings, comment, anonymous: true }
     });
     setComment('');
+    setRatings({ wellbeing: 3, fairness: 3, cleanliness: 3, communication: 3 });
     load();
   }
 
@@ -50,6 +59,14 @@ export default function MoodScreen() {
       </Card>
       <Card tone="soft">
         <View style={styles.form}>
+          {RATING_FIELDS.map(field => (
+            <RatingSelector
+              key={field.key}
+              label={field.label}
+              value={ratings[field.key]}
+              onChange={v => setRatings(current => ({ ...current, [field.key]: v }))}
+            />
+          ))}
           <TextField label="Kommentar optional" value={comment} onChangeText={setComment} placeholder="Was sollte besprochen werden?" />
           <Button title="Check-in senden" icon="paper-plane" onPress={submitMood} />
         </View>
@@ -77,7 +94,44 @@ function Metric({ label, value }: { label: string; value: number | null }) {
   return <MetricCard label={label} value={`${value ?? '-'} / 5`} icon="chart-simple" tone="aqua" />;
 }
 
+function RatingSelector({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  return (
+    <View style={styles.ratingRow}>
+      <AppText variant="small" style={{ color: colors.textMuted }}>{label}</AppText>
+      <View style={styles.ratingOptions}>
+        {[1, 2, 3, 4, 5].map(n => (
+          <Pressable
+            key={n}
+            onPress={() => onChange(n)}
+            style={[styles.ratingChip, n === value && styles.ratingChipActive]}
+          >
+            <AppText style={n === value ? styles.ratingChipTextActive : styles.ratingChipText}>{n}</AppText>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   form: { gap: spacing.md },
-  metrics: { gap: spacing.md }
+  metrics: { gap: spacing.md },
+  ratingRow: { gap: spacing.xs },
+  ratingOptions: { flexDirection: 'row', gap: spacing.sm },
+  ratingChip: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  ratingChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary
+  },
+  ratingChipText: { color: colors.text },
+  ratingChipTextActive: { color: '#FFFFFF', fontWeight: '800' }
 });

@@ -1,18 +1,25 @@
 from flask import Flask, redirect, url_for, request, flash, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
-from flask_wtf.csrf import CSRFProtect
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import (
+    JWTManager, create_access_token, jwt_required, get_jwt_identity, get_jwt
+)
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from urllib.parse import urlparse
 from datetime import datetime, timedelta
+import hashlib
+import logging
 import random
 import re
+import secrets
+import smtplib
 import string
 import os
 import uuid
+from email.message import EmailMessage
 
 # ──────────────────────────────────────────────
 #  APP SETUP
@@ -24,9 +31,27 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', os.path.join(os.path.dirname(__file__), 'static', 'uploads'))
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32 MB
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'wg-jwt-secret-mobile-dev-key-2024-change-me')
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=14)
 app.config['MOBILE_APP_URL'] = os.environ.get('MOBILE_APP_URL', 'https://zofri-app.onrender.com').rstrip('/')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+# Password-reset email delivery. Unset SMTP_HOST leaves the app fully functional
+# for everything else, but reset codes will only appear in the server log —
+# set SMTP_HOST/PORT/USER/PASSWORD/FROM to actually email them to users.
+SMTP_HOST = os.environ.get('SMTP_HOST')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
+SMTP_USER = os.environ.get('SMTP_USER')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
+SMTP_FROM = os.environ.get('SMTP_FROM', SMTP_USER or 'no-reply@zofri.app')
+
+# CORS is only enforced by browsers (Expo web build), not native iOS/Android —
+# restrict it to the deployed web app plus local dev servers instead of "*".
+_default_origins = ','.join([
+    app.config['MOBILE_APP_URL'],
+    'http://localhost:8081', 'http://127.0.0.1:8081',
+    'http://localhost:19006', 'http://127.0.0.1:19006',
+])
+CORS_ORIGINS = [o.strip() for o in os.environ.get('CORS_ORIGINS', _default_origins).split(',') if o.strip()]
 
 ALLOWED_IMAGE = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
 ALLOWED_AUDIO = {'mp3', 'ogg', 'wav', 'webm', 'm4a', 'aac'}
@@ -34,20 +59,35 @@ ALLOWED_AUDIO = {'mp3', 'ogg', 'wav', 'webm', 'm4a', 'aac'}
 def allowed_file(filename, allowed_set):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_set
 
+def send_email(to_address, subject, body):
+    if not SMTP_HOST:
+        logging.getLogger('zofri.mail').warning(
+            '[email delivery not configured] to=%s subject=%s\n%s', to_address, subject, body
+        )
+        return False
+    message = EmailMessage()
+    message['Subject'] = subject
+    message['From'] = SMTP_FROM
+    message['To'] = to_address
+    message.set_content(body)
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as smtp:
+        smtp.starttls()
+        if SMTP_USER and SMTP_PASSWORD:
+            smtp.login(SMTP_USER, SMTP_PASSWORD)
+        smtp.send_message(message)
+    return True
+
 db = SQLAlchemy(app)
-csrf = CSRFProtect(app)
 jwt_manager = JWTManager(app)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
-login_manager = LoginManager(app)
-login_manager.login_view = 'login'
-login_manager.login_message = 'Bitte melde dich an.'
-login_manager.login_message_category = 'warning'
+CORS(app, resources={r"/api/*": {"origins": CORS_ORIGINS}})
+limiter = Limiter(get_remote_address, app=app, storage_uri='memory://',
+                   default_limits=['200 per hour'])
 
 
 # ──────────────────────────────────────────────
 #  MODELS
 # ──────────────────────────────────────────────
-class User(UserMixin, db.Model):
+class User(db.Model):
     __tablename__ = 'users'
     id            = db.Column(db.Integer, primary_key=True)
     username      = db.Column(db.String(80),  unique=True, nullable=False)
@@ -152,6 +192,31 @@ class ExpenseSplit(db.Model):
     user_id    = db.Column(db.Integer, db.ForeignKey('users.id'),    nullable=False)
     amount     = db.Column(db.Float, nullable=False)
     user = db.relationship('User', foreign_keys=[user_id])
+
+
+class RevokedToken(db.Model):
+    __tablename__ = 'revoked_tokens'
+    id         = db.Column(db.Integer, primary_key=True)
+    jti        = db.Column(db.String(36), unique=True, nullable=False, index=True)
+    revoked_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class PasswordResetCode(db.Model):
+    __tablename__ = 'password_reset_codes'
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    code_hash  = db.Column(db.String(256), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    attempts   = db.Column(db.Integer, default=0)
+    used       = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', foreign_keys=[user_id])
+
+
+@jwt_manager.token_in_blocklist_loader
+def check_if_token_revoked(jwt_header, jwt_payload):
+    jti = jwt_payload['jti']
+    return db.session.query(RevokedToken.id).filter_by(jti=jti).first() is not None
 
 
 class CalendarEvent(db.Model):
@@ -272,10 +337,6 @@ AVATAR_COLORS = [
     '#f97316','#22c55e','#14b8a6','#0ea5e9',
 ]
 
-@login_manager.user_loader
-def load_user(uid):
-    return db.session.get(User, int(uid))
-
 
 def gen_invite_code():
     while True:
@@ -339,319 +400,18 @@ def mobile_app_url(path='/'):
 
 
 # ──────────────────────────────────────────────
-#  AUTH ROUTES
+#  STATIC FILE SERVING (feed attachments)
 # ──────────────────────────────────────────────
-@app.route('/')
-def index():
-    return redirect(mobile_app_url('/'))
-
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    return redirect(mobile_app_url('/register'))
-
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    return redirect(mobile_app_url('/login'))
-
-
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(mobile_app_url('/welcome'))
-
-
-# ──────────────────────────────────────────────
-#  WG SETUP
-# ──────────────────────────────────────────────
-@app.route('/wg/setup', methods=['GET', 'POST'])
-@login_required
-def wg_setup():
-    return redirect(mobile_app_url('/wg-setup'))
-
-
-# ──────────────────────────────────────────────
-#  DASHBOARD
-# ──────────────────────────────────────────────
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    return redirect(mobile_app_url('/'))
-
-
-# ──────────────────────────────────────────────
-#  TASKS
-# ──────────────────────────────────────────────
-@app.route('/tasks')
-@login_required
-def tasks():
-    return redirect(mobile_app_url('/tasks'))
-
-
-@app.route('/tasks/add', methods=['POST'])
-@login_required
-def add_task():
-    wg = current_user.get_wg()
-    if not wg: return redirect(url_for('wg_setup'))
-    title       = request.form.get('title', '').strip()
-    description = request.form.get('description', '').strip()
-    assigned_to = request.form.get('assigned_to', type=int)
-    due_str     = request.form.get('due_date', '')
-    if not title:
-        flash('Aufgabenname ist erforderlich.', 'danger')
-        return redirect(url_for('tasks'))
-    due_date = None
-    if due_str:
-        try: due_date = datetime.strptime(due_str, '%Y-%m-%d').date()
-        except: pass
-    db.session.add(CleaningTask(
-        wg_id=wg.id, title=title, description=description,
-        assigned_to=assigned_to or None, due_date=due_date
-    ))
-    db.session.commit()
-    flash('Aufgabe hinzugefügt!', 'success')
-    return redirect(url_for('tasks'))
-
-
-@app.route('/tasks/<int:tid>/toggle', methods=['POST'])
-@login_required
-@csrf.exempt
-def toggle_task(tid):
-    wg   = current_user.get_wg()
-    task = db.get_or_404(CleaningTask, tid)
-    if task.wg_id != wg.id: return jsonify({'error': 'Unauthorized'}), 403
-    task.completed    = not task.completed
-    task.completed_at = datetime.utcnow() if task.completed else None
-    db.session.commit()
-    return jsonify({'completed': task.completed})
-
-
-@app.route('/tasks/<int:tid>/delete', methods=['POST'])
-@login_required
-def delete_task(tid):
-    wg   = current_user.get_wg()
-    task = db.get_or_404(CleaningTask, tid)
-    if task.wg_id != wg.id:
-        flash('Nicht autorisiert.', 'danger')
-        return redirect(url_for('tasks'))
-    db.session.delete(task)
-    db.session.commit()
-    flash('Aufgabe gelöscht.', 'info')
-    return redirect(url_for('tasks'))
-
-
-@app.route('/tasks/rotate', methods=['POST'])
-@login_required
-def rotate_tasks():
-    wg      = current_user.get_wg()
-    members = wg.get_members()
-    if len(members) < 2:
-        flash('Mindestens 2 Mitglieder für Rotation benötigt.', 'warning')
-        return redirect(url_for('tasks'))
-    open_t = CleaningTask.query.filter_by(wg_id=wg.id, completed=False).all()
-    random.shuffle(members)
-    for i, t in enumerate(open_t):
-        t.assigned_to = members[i % len(members)].id
-    db.session.commit()
-    flash('Aufgaben wurden rotiert!', 'success')
-    return redirect(url_for('tasks'))
-
-
-# ──────────────────────────────────────────────
-#  SHOPPING
-# ──────────────────────────────────────────────
-@app.route('/shopping')
-@login_required
-def shopping():
-    return redirect(mobile_app_url('/shopping'))
-
-
-@app.route('/shopping/add', methods=['POST'])
-@login_required
-def add_shopping():
-    wg       = current_user.get_wg()
-    name     = request.form.get('name', '').strip()
-    quantity = request.form.get('quantity', '').strip()
-    if not name:
-        flash('Artikelname erforderlich.', 'danger')
-        return redirect(url_for('shopping'))
-    item = ShoppingItem(wg_id=wg.id, name=name, quantity=quantity, added_by=current_user.id)
-    db.session.add(item)
-    db.session.commit()
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return jsonify({'success': True, 'id': item.id, 'name': item.name,
-                        'quantity': item.quantity, 'username': current_user.username,
-                        'avatar_color': current_user.avatar_color})
-    return redirect(url_for('shopping'))
-
-
-@app.route('/shopping/<int:iid>/toggle', methods=['POST'])
-@login_required
-@csrf.exempt
-def toggle_shopping(iid):
-    wg   = current_user.get_wg()
-    item = db.get_or_404(ShoppingItem, iid)
-    if item.wg_id != wg.id: return jsonify({'error': 'Unauthorized'}), 403
-    item.completed = not item.completed
-    db.session.commit()
-    return jsonify({'completed': item.completed})
-
-
-@app.route('/shopping/<int:iid>/delete', methods=['POST'])
-@login_required
-@csrf.exempt
-def delete_shopping(iid):
-    wg   = current_user.get_wg()
-    item = db.get_or_404(ShoppingItem, iid)
-    if item.wg_id != wg.id: return jsonify({'error': 'Unauthorized'}), 403
-    db.session.delete(item)
-    db.session.commit()
-    return jsonify({'success': True})
-
-
-@app.route('/shopping/clear-done', methods=['POST'])
-@login_required
-def clear_done_shopping():
-    wg = current_user.get_wg()
-    ShoppingItem.query.filter_by(wg_id=wg.id, completed=True).delete()
-    db.session.commit()
-    flash('Erledigte Artikel gelöscht.', 'info')
-    return redirect(url_for('shopping'))
-
-
-# ──────────────────────────────────────────────
-#  FINANCE
-# ──────────────────────────────────────────────
-@app.route('/finance')
-@login_required
-def finance():
-    return redirect(mobile_app_url('/expenses'))
-
-
-@app.route('/finance/add', methods=['POST'])
-@login_required
-def add_expense():
-    wg         = current_user.get_wg()
-    title      = request.form.get('title', '').strip()
-    amount_str = request.form.get('amount', '').replace(',', '.')
-    paid_by_id = request.form.get('paid_by', type=int) or current_user.id
-    if not title or not amount_str:
-        flash('Alle Felder erforderlich.', 'danger')
-        return redirect(url_for('finance'))
-    try:
-        amount = float(amount_str)
-        if amount <= 0: raise ValueError
-    except ValueError:
-        flash('Ungültiger Betrag.', 'danger')
-        return redirect(url_for('finance'))
-    members = wg.get_members()
-    expense = Expense(wg_id=wg.id, title=title, amount=amount, paid_by=paid_by_id)
-    db.session.add(expense)
-    db.session.flush()
-    # Distribute splits so they always sum to the exact total
-    n = len(members)
-    running_total = 0.0
-    for i, m in enumerate(members):
-        if i < n - 1:
-            split_amt = round(amount / n, 2)
-            running_total += split_amt
-        else:
-            split_amt = round(amount - running_total, 2)
-        db.session.add(ExpenseSplit(expense_id=expense.id, user_id=m.id, amount=split_amt))
-    db.session.commit()
-    flash(f'Ausgabe "{title}" ({amount:.2f} €) hinzugefügt!', 'success')
-    return redirect(url_for('finance'))
-
-
-@app.route('/finance/<int:eid>/delete', methods=['POST'])
-@login_required
-def delete_expense(eid):
-    wg      = current_user.get_wg()
-    expense = db.get_or_404(Expense, eid)
-    if expense.wg_id != wg.id:
-        flash('Nicht autorisiert.', 'danger')
-        return redirect(url_for('finance'))
-    db.session.delete(expense)
-    db.session.commit()
-    flash('Ausgabe gelöscht.', 'info')
-    return redirect(url_for('finance'))
-
-
-# ──────────────────────────────────────────────
-#  FEED (Pinnwand)
-# ──────────────────────────────────────────────
-@app.route('/feed')
-@login_required
-def feed():
-    return redirect(mobile_app_url('/wg'))
-
-
-@app.route('/feed/post', methods=['POST'])
-@login_required
-def feed_post():
-    wg      = current_user.get_wg()
-    content = request.form.get('content', '').strip()
-    file    = request.files.get('file')
-    file_name = None
-    file_type = None
-
-    if file and file.filename:
-        fname = secure_filename(file.filename)
-        ext   = fname.rsplit('.', 1)[-1].lower() if '.' in fname else ''
-        if allowed_file(fname, ALLOWED_IMAGE):
-            file_type = 'image'
-        elif allowed_file(fname, ALLOWED_AUDIO):
-            file_type = 'audio'
-        else:
-            flash('Nur Bilder (jpg/png/gif/webp) und Audio (mp3/ogg/wav/webm/m4a) erlaubt.', 'danger')
-            return redirect(url_for('feed'))
-        unique_name = f"{uuid.uuid4().hex}.{ext}"
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_name))
-        file_name = unique_name
-
-    if not content and not file_name:
-        flash('Bitte Text oder Datei hinzufügen.', 'warning')
-        return redirect(url_for('feed'))
-
-    post = FeedPost(wg_id=wg.id, user_id=current_user.id,
-                    content=content, file_name=file_name, file_type=file_type)
-    db.session.add(post)
-    db.session.commit()
-    return redirect(url_for('feed'))
-
-
-@app.route('/feed/<int:pid>/delete', methods=['POST'])
-@login_required
-def delete_feed_post(pid):
-    wg   = current_user.get_wg()
-    post = db.get_or_404(FeedPost, pid)
-    if post.wg_id != wg.id or post.user_id != current_user.id:
-        flash('Nicht autorisiert.', 'danger')
-        return redirect(url_for('feed'))
-    if post.file_name:
-        try:
-            os.remove(os.path.join(app.config['UPLOAD_FOLDER'], post.file_name))
-        except OSError:
-            pass
-    db.session.delete(post)
-    db.session.commit()
-    return redirect(url_for('feed'))
-
-
 @app.route('/uploads/<filename>')
-@login_required
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], secure_filename(filename))
 
 
 # ──────────────────────────────────────────────
-#  API BLUEPRINT (CSRF exempt — JWT handles auth)
+#  API BLUEPRINT (JWT handles auth)
 # ──────────────────────────────────────────────
 from flask import Blueprint
 api = Blueprint('api', __name__)
-csrf.exempt(api)
 
 # ──────────────────────────────────────────────
 #  API HELPERS
@@ -815,6 +575,7 @@ def parse_receipt_text(text):
 #  API — AUTH
 # ──────────────────────────────────────────────
 @api.route('/auth/register', methods=['POST'])
+@limiter.limit('10 per minute')
 def api_register():
     data     = request.get_json() or {}
     username = data.get('username', '').strip()
@@ -838,6 +599,7 @@ def api_register():
 
 
 @api.route('/auth/login', methods=['POST'])
+@limiter.limit('10 per minute')
 def api_login():
     data     = request.get_json() or {}
     email    = data.get('email', '').strip().lower()
@@ -859,6 +621,72 @@ def api_me():
         return jsonify({'error': 'Not found.'}), 404
     wg = user.get_wg()
     return jsonify({'user': user_to_dict(user), 'wg': wg_to_dict(wg) if wg else None})
+
+
+@api.route('/auth/logout', methods=['POST'])
+@jwt_required()
+def api_logout():
+    jti = get_jwt()['jti']
+    db.session.add(RevokedToken(jti=jti))
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@api.route('/auth/forgot-password', methods=['POST'])
+@limiter.limit('5 per minute')
+def api_forgot_password():
+    data  = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+    if not email:
+        return jsonify({'error': 'E-Mail erforderlich.'}), 400
+    generic = jsonify({'success': True, 'message': 'Falls diese E-Mail registriert ist, wurde ein Code gesendet.'})
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return generic
+    code = f'{secrets.randbelow(1000000):06d}'
+    db.session.add(PasswordResetCode(
+        user_id=user.id,
+        code_hash=hashlib.sha256(code.encode()).hexdigest(),
+        expires_at=datetime.utcnow() + timedelta(minutes=15)
+    ))
+    db.session.commit()
+    send_email(
+        user.email,
+        'Zofri – Passwort zurücksetzen',
+        f'Dein Reset-Code lautet: {code}\nEr ist 15 Minuten gültig. '
+        f'Falls du das nicht angefordert hast, ignoriere diese E-Mail.'
+    )
+    return generic
+
+
+@api.route('/auth/reset-password', methods=['POST'])
+@limiter.limit('10 per minute')
+def api_reset_password():
+    data     = request.get_json() or {}
+    email    = data.get('email', '').strip().lower()
+    code     = data.get('code', '').strip()
+    password = data.get('password', '')
+    if not all([email, code, password]):
+        return jsonify({'error': 'Alle Felder sind erforderlich.'}), 400
+    if len(password) < 6:
+        return jsonify({'error': 'Passwort muss mindestens 6 Zeichen lang sein.'}), 400
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({'error': 'Ungültiger Code.'}), 400
+    reset = (PasswordResetCode.query
+             .filter_by(user_id=user.id, used=False)
+             .order_by(PasswordResetCode.created_at.desc())
+             .first())
+    if not reset or reset.expires_at < datetime.utcnow() or reset.attempts >= 5:
+        return jsonify({'error': 'Ungültiger oder abgelaufener Code.'}), 400
+    if reset.code_hash != hashlib.sha256(code.encode()).hexdigest():
+        reset.attempts += 1
+        db.session.commit()
+        return jsonify({'error': 'Ungültiger Code.'}), 400
+    reset.used = True
+    user.set_password(password)
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 # ──────────────────────────────────────────────
@@ -991,7 +819,7 @@ def api_toggle_task(tid):
     user = db.session.get(User, uid)
     wg   = user.get_wg()
     task = db.session.get(CleaningTask, tid)
-    if not task or task.wg_id != wg.id:
+    if not wg or not task or task.wg_id != wg.id:
         return jsonify({'error': 'Nicht gefunden.'}), 404
     task.completed    = not task.completed
     task.completed_at = datetime.utcnow() if task.completed else None
@@ -1006,7 +834,7 @@ def api_delete_task(tid):
     user = db.session.get(User, uid)
     wg   = user.get_wg()
     task = db.session.get(CleaningTask, tid)
-    if not task or task.wg_id != wg.id:
+    if not wg or not task or task.wg_id != wg.id:
         return jsonify({'error': 'Nicht gefunden.'}), 404
     db.session.delete(task)
     db.session.commit()
@@ -1019,6 +847,8 @@ def api_rotate_tasks():
     uid  = get_jwt_identity()
     user = db.session.get(User, uid)
     wg   = user.get_wg()
+    if not wg:
+        return jsonify({'error': 'Keine WG.'}), 404
     members = wg.get_members()
     if len(members) < 2:
         return jsonify({'error': 'Mindestens 2 Mitglieder benötigt.'}), 400
@@ -1073,7 +903,7 @@ def api_toggle_shopping(iid):
     user = db.session.get(User, uid)
     wg   = user.get_wg()
     item = db.session.get(ShoppingItem, iid)
-    if not item or item.wg_id != wg.id:
+    if not wg or not item or item.wg_id != wg.id:
         return jsonify({'error': 'Nicht gefunden.'}), 404
     item.completed = not item.completed
     db.session.commit()
@@ -1087,7 +917,7 @@ def api_delete_shopping(iid):
     user = db.session.get(User, uid)
     wg   = user.get_wg()
     item = db.session.get(ShoppingItem, iid)
-    if not item or item.wg_id != wg.id:
+    if not wg or not item or item.wg_id != wg.id:
         return jsonify({'error': 'Nicht gefunden.'}), 404
     db.session.delete(item)
     db.session.commit()
@@ -1171,7 +1001,7 @@ def api_delete_expense(eid):
     user = db.session.get(User, uid)
     wg   = user.get_wg()
     expense = db.session.get(Expense, eid)
-    if not expense or expense.wg_id != wg.id:
+    if not wg or not expense or expense.wg_id != wg.id:
         return jsonify({'error': 'Nicht gefunden.'}), 404
     db.session.delete(expense)
     db.session.commit()
@@ -1233,7 +1063,7 @@ def api_delete_feed_post(pid):
     user = db.session.get(User, uid)
     wg   = user.get_wg()
     post = db.session.get(FeedPost, pid)
-    if not post or post.wg_id != wg.id or post.user_id != uid:
+    if not wg or not post or post.wg_id != wg.id or post.user_id != uid:
         return jsonify({'error': 'Nicht gefunden oder nicht autorisiert.'}), 404
     if post.file_name:
         try: os.remove(os.path.join(app.config['UPLOAD_FOLDER'], post.file_name))

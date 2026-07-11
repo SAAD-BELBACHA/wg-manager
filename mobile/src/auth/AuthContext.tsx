@@ -123,7 +123,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
       });
       setHousehold(data.wg);
     },
-    logout: clearAuth,
+    logout: async () => {
+      if (token) {
+        try {
+          await apiRequest('/auth/logout', { method: 'POST', token });
+        } catch {
+          // best-effort: still clear the local session even if the revoke call fails
+        }
+      }
+      await clearAuth();
+    },
     refreshMe
   }), [applyAuth, booting, clearAuth, household, refreshMe, token, user]);
 
