@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
@@ -13,10 +13,16 @@ import { Screen } from '@/components/Screen';
 import { StatusPill } from '@/components/StatusPill';
 import { TextField } from '@/components/TextField';
 import { Rule } from '@/types/api';
-import { colors, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function RulesScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    form: { gap: spacing.md },
+    error: { color: colors.danger }
+  }), [colors]);
   const [rules, setRules] = useState<Rule[]>([]);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -81,8 +87,3 @@ export default function RulesScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  form: { gap: spacing.md },
-  error: { color: colors.danger }
-});

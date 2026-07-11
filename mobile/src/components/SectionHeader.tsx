@@ -1,6 +1,7 @@
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
-import { colors } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 type SectionHeaderProps = {
   title: string;
@@ -8,6 +9,16 @@ type SectionHeaderProps = {
 };
 
 export function SectionHeader({ title, subtitle }: SectionHeaderProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    wrap: {
+      gap: 2
+    },
+    subtitle: {
+      color: colors.textMuted
+    }
+  }), [colors]);
+
   return (
     <View style={styles.wrap}>
       <AppText variant="h2">{title}</AppText>
@@ -15,12 +26,3 @@ export function SectionHeader({ title, subtitle }: SectionHeaderProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    gap: 2
-  },
-  subtitle: {
-    color: colors.textMuted
-  }
-});

@@ -1,5 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Image, Platform, StyleSheet, View } from 'react-native';
 import { apiRequest, apiUpload } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
@@ -11,7 +11,8 @@ import { Screen } from '@/components/Screen';
 import { StatusPill } from '@/components/StatusPill';
 import { TextField } from '@/components/TextField';
 import { ReceiptOcrResult } from '@/types/api';
-import { colors, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 type PickedImage = {
   uri: string;
@@ -21,6 +22,36 @@ type PickedImage = {
 
 export default function ReceiptScanScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    actions: {
+      gap: spacing.md,
+      marginTop: spacing.md
+    },
+    preview: {
+      width: '100%',
+      height: 280,
+      borderRadius: 18,
+      backgroundColor: colors.surfaceMuted,
+      marginVertical: spacing.md
+    },
+    form: {
+      gap: spacing.md,
+      marginTop: spacing.md
+    },
+    rawTextCard: {
+      backgroundColor: colors.surfaceMuted,
+      shadowOpacity: 0,
+      marginVertical: spacing.md
+    },
+    error: {
+      color: colors.danger
+    },
+    success: {
+      color: colors.success,
+      fontWeight: '800'
+    }
+  }), [colors]);
   const [image, setImage] = useState<PickedImage | null>(null);
   const [ocr, setOcr] = useState<ReceiptOcrResult | null>(null);
   const [merchant, setMerchant] = useState('');
@@ -184,33 +215,3 @@ export default function ReceiptScanScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  actions: {
-    gap: spacing.md,
-    marginTop: spacing.md
-  },
-  preview: {
-    width: '100%',
-    height: 280,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceMuted,
-    marginVertical: spacing.md
-  },
-  form: {
-    gap: spacing.md,
-    marginTop: spacing.md
-  },
-  rawTextCard: {
-    backgroundColor: colors.surfaceMuted,
-    shadowOpacity: 0,
-    marginVertical: spacing.md
-  },
-  error: {
-    color: colors.danger
-  },
-  success: {
-    color: colors.success,
-    fontWeight: '800'
-  }
-});

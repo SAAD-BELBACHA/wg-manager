@@ -1,10 +1,11 @@
 import { FontAwesome6 } from '@expo/vector-icons';
-import { ComponentProps } from 'react';
+import { ComponentProps, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { AppText } from '@/components/AppText';
 import { StatusPill } from '@/components/StatusPill';
-import { colors, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 type AppHeaderProps = {
   title: string;
@@ -15,6 +16,35 @@ type AppHeaderProps = {
 };
 
 export function AppHeader({ title, subtitle, eyebrow, back, icon }: AppHeaderProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    header: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: spacing.md
+    },
+    back: {
+      width: 42,
+      height: 42,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    copy: {
+      flex: 1,
+      gap: spacing.sm
+    },
+    icon: {
+      width: 50,
+      height: 50,
+      borderRadius: 18,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }), [colors]);
+
   return (
     <View style={styles.header}>
       {back ? (
@@ -35,31 +65,3 @@ export function AppHeader({ title, subtitle, eyebrow, back, icon }: AppHeaderPro
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md
-  },
-  back: {
-    width: 42,
-    height: 42,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  copy: {
-    flex: 1,
-    gap: spacing.sm
-  },
-  icon: {
-    width: 50,
-    height: 50,
-    borderRadius: 18,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center'
-  }
-});

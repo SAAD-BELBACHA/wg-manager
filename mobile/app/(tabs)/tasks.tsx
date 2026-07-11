@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
@@ -13,10 +13,24 @@ import { TextField } from '@/components/TextField';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { Task, TasksResponse } from '@/types/api';
-import { colors, radii, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function TasksScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    metrics: {
+      flexDirection: 'row',
+      gap: spacing.md
+    },
+    form: {
+      gap: spacing.md
+    },
+    error: {
+      color: colors.danger
+    }
+  }), [colors]);
   const [openTasks, setOpenTasks] = useState<Task[]>([]);
   const [doneTasks, setDoneTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState('');
@@ -130,16 +144,3 @@ function TaskRow({ task, done, onToggle }: { task: Task; done?: boolean; onToggl
     />
   );
 }
-
-const styles = StyleSheet.create({
-  metrics: {
-    flexDirection: 'row',
-    gap: spacing.md
-  },
-  form: {
-    gap: spacing.md
-  },
-  error: {
-    color: colors.danger
-  }
-});

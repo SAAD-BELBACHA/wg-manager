@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
@@ -12,7 +12,8 @@ import { MetricCard } from '@/components/MetricCard';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { MoodSummary } from '@/types/api';
-import { colors, radii, spacing } from '@/theme/tokens';
+import { radii, spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 const RATING_FIELDS: { key: 'wellbeing' | 'fairness' | 'cleanliness' | 'communication'; label: string }[] = [
   { key: 'wellbeing', label: 'Wohlbefinden' },
@@ -23,6 +24,11 @@ const RATING_FIELDS: { key: 'wellbeing' | 'fairness' | 'cleanliness' | 'communic
 
 export default function MoodScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    form: { gap: spacing.md },
+    metrics: { gap: spacing.md }
+  }), [colors]);
   const [summary, setSummary] = useState<MoodSummary | null>(null);
   const [ratings, setRatings] = useState({ wellbeing: 3, fairness: 3, cleanliness: 3, communication: 3 });
   const [comment, setComment] = useState('');
@@ -95,6 +101,28 @@ function Metric({ label, value }: { label: string; value: number | null }) {
 }
 
 function RatingSelector({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    ratingRow: { gap: spacing.xs },
+    ratingOptions: { flexDirection: 'row', gap: spacing.sm },
+    ratingChip: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.pill,
+      backgroundColor: colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    ratingChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary
+    },
+    ratingChipText: { color: colors.text },
+    ratingChipTextActive: { color: '#FFFFFF', fontWeight: '800' }
+  }), [colors]);
+
   return (
     <View style={styles.ratingRow}>
       <AppText variant="small" style={{ color: colors.textMuted }}>{label}</AppText>
@@ -112,26 +140,3 @@ function RatingSelector({ label, value, onChange }: { label: string; value: numb
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  form: { gap: spacing.md },
-  metrics: { gap: spacing.md },
-  ratingRow: { gap: spacing.xs },
-  ratingOptions: { flexDirection: 'row', gap: spacing.sm },
-  ratingChip: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.pill,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  ratingChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary
-  },
-  ratingChipText: { color: colors.text },
-  ratingChipTextActive: { color: '#FFFFFF', fontWeight: '800' }
-});

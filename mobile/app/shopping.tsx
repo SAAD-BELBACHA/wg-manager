@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
@@ -13,10 +13,24 @@ import { MetricCard } from '@/components/MetricCard';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { ShoppingItem, ShoppingResponse } from '@/types/api';
-import { colors, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function ShoppingScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    metrics: {
+      flexDirection: 'row',
+      gap: spacing.md
+    },
+    form: {
+      gap: spacing.md
+    },
+    error: {
+      color: colors.danger
+    }
+  }), [colors]);
   const [pending, setPending] = useState<ShoppingItem[]>([]);
   const [done, setDone] = useState<ShoppingItem[]>([]);
   const [name, setName] = useState('');
@@ -154,16 +168,3 @@ function ShoppingRow({ item, done, onToggle, onDelete }: {
     />
   );
 }
-
-const styles = StyleSheet.create({
-  metrics: {
-    flexDirection: 'row',
-    gap: spacing.md
-  },
-  form: {
-    gap: spacing.md
-  },
-  error: {
-    color: colors.danger
-  }
-});

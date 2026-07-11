@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .DS_Store
 .env
+.venv/
 instance/
 
 mobile/node_modules/

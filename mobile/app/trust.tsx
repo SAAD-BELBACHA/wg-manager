@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
@@ -12,10 +12,24 @@ import { MetricCard } from '@/components/MetricCard';
 import { Screen } from '@/components/Screen';
 import { StatusPill } from '@/components/StatusPill';
 import { TrustProfile } from '@/types/api';
-import { colors, radii, spacing } from '@/theme/tokens';
+import { radii, spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function TrustScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    scoreCard: { alignItems: 'center', gap: spacing.md },
+    scoreCircle: {
+      width: 150,
+      height: 150,
+      borderRadius: radii.pill,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    metrics: { flexDirection: 'row', gap: spacing.md }
+  }), [colors]);
   const [profile, setProfile] = useState<TrustProfile | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -63,16 +77,3 @@ export default function TrustScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  scoreCard: { alignItems: 'center', gap: spacing.md },
-  scoreCircle: {
-    width: 150,
-    height: 150,
-    borderRadius: radii.pill,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  metrics: { flexDirection: 'row', gap: spacing.md }
-});

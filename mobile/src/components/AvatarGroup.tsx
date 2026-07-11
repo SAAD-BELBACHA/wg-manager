@@ -1,7 +1,8 @@
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { MemberAvatar } from '@/components/MemberAvatar';
-import { colors } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 import { User } from '@/types/api';
 
 type AvatarGroupProps = {
@@ -9,6 +10,28 @@ type AvatarGroupProps = {
 };
 
 export function AvatarGroup({ members }: AvatarGroupProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center'
+    },
+    rest: {
+      marginLeft: -10,
+      width: 38,
+      height: 38,
+      borderRadius: 16,
+      backgroundColor: colors.text,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: colors.surface
+    },
+    restText: {
+      color: colors.surface,
+      fontWeight: '900'
+    }
+  }), [colors]);
   const visible = members.slice(0, 4);
   const rest = members.length - visible.length;
 
@@ -27,25 +50,3 @@ export function AvatarGroup({ members }: AvatarGroupProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  rest: {
-    marginLeft: -10,
-    width: 38,
-    height: 38,
-    borderRadius: 16,
-    backgroundColor: colors.text,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.surface
-  },
-  restText: {
-    color: colors.surface,
-    fontWeight: '900'
-  }
-});

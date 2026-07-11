@@ -13,7 +13,8 @@ import { StatusPill } from '@/components/StatusPill';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { DashboardResponse, Task } from '@/types/api';
-import { colors, radii, spacing } from '@/theme/tokens';
+import { radii, spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 function greeting() {
   const hour = new Date().getHours();
@@ -35,9 +36,142 @@ function formatTaskDate(task: Task) {
 
 export default function DashboardScreen() {
   const { token, user, household } = useAuth();
+  const colors = useThemeColors();
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const styles = useMemo(() => StyleSheet.create({
+    header: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.lg
+    },
+    titleWrap: {
+      flex: 1,
+      gap: spacing.sm
+    },
+    loading: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm
+    },
+    muted: {
+      color: colors.textMuted
+    },
+    error: {
+      color: colors.danger
+    },
+    heroTop: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.lg
+    },
+    heroTitle: {
+      color: colors.surface
+    },
+    heroMuted: {
+      color: 'rgba(255,255,255,0.76)',
+      fontWeight: '900'
+    },
+    heroCopy: {
+      color: 'rgba(255,255,255,0.88)',
+      fontWeight: '700'
+    },
+    heroIcon: {
+      width: 50,
+      height: 50,
+      borderRadius: 19,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    heroStats: {
+      flexDirection: 'row',
+      gap: spacing.sm
+    },
+    heroStat: {
+      flex: 1,
+      borderRadius: radii.md,
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      padding: spacing.md
+    },
+    heroStatNumber: {
+      color: colors.surface,
+      fontWeight: '900'
+    },
+    heroStatLabel: {
+      color: 'rgba(255,255,255,0.78)',
+      fontWeight: '800'
+    },
+    quickGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm,
+      marginTop: spacing.md
+    },
+    pressed: {
+      transform: [{ scale: 0.99 }],
+      opacity: 0.94
+    },
+    featuredCard: {
+      gap: spacing.lg
+    },
+    rowBetween: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: spacing.md
+    },
+    roundIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    taskBody: {
+      gap: spacing.md
+    },
+    metaRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm
+    },
+    checkGrid: {
+      flexDirection: 'row',
+      gap: spacing.md
+    },
+    checkTile: {
+      flex: 1
+    },
+    checkCard: {
+      minHeight: 160,
+      gap: spacing.sm
+    },
+    feedCard: {
+      gap: spacing.lg,
+      marginBottom: spacing.xl
+    },
+    feedList: {
+      gap: spacing.md
+    },
+    feedItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md
+    },
+    dot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5
+    },
+    feedText: {
+      flex: 1
+    }
+  }), [colors]);
 
   useFocusEffect(useCallback(() => {
     let alive = true;
@@ -196,135 +330,3 @@ export default function DashboardScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.lg
-  },
-  titleWrap: {
-    flex: 1,
-    gap: spacing.sm
-  },
-  loading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm
-  },
-  muted: {
-    color: colors.textMuted
-  },
-  error: {
-    color: colors.danger
-  },
-  heroTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.lg
-  },
-  heroTitle: {
-    color: colors.surface
-  },
-  heroMuted: {
-    color: 'rgba(255,255,255,0.76)',
-    fontWeight: '900'
-  },
-  heroCopy: {
-    color: 'rgba(255,255,255,0.88)',
-    fontWeight: '700'
-  },
-  heroIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 19,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  heroStats: {
-    flexDirection: 'row',
-    gap: spacing.sm
-  },
-  heroStat: {
-    flex: 1,
-    borderRadius: radii.md,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    padding: spacing.md
-  },
-  heroStatNumber: {
-    color: colors.surface,
-    fontWeight: '900'
-  },
-  heroStatLabel: {
-    color: 'rgba(255,255,255,0.78)',
-    fontWeight: '800'
-  },
-  quickGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginTop: spacing.md
-  },
-  pressed: {
-    transform: [{ scale: 0.99 }],
-    opacity: 0.94
-  },
-  featuredCard: {
-    gap: spacing.lg
-  },
-  rowBetween: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.md
-  },
-  roundIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  taskBody: {
-    gap: spacing.md
-  },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm
-  },
-  checkGrid: {
-    flexDirection: 'row',
-    gap: spacing.md
-  },
-  checkTile: {
-    flex: 1
-  },
-  checkCard: {
-    minHeight: 160,
-    gap: spacing.sm
-  },
-  feedCard: {
-    gap: spacing.lg,
-    marginBottom: spacing.xl
-  },
-  feedList: {
-    gap: spacing.md
-  },
-  feedItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md
-  },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5
-  },
-  feedText: {
-    flex: 1
-  }
-});

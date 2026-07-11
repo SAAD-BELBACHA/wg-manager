@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
-import { colors, radii } from '@/theme/tokens';
+import { radii } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 import { User } from '@/types/api';
 
 type MemberAvatarProps = {
@@ -9,6 +11,20 @@ type MemberAvatarProps = {
 };
 
 export function MemberAvatar({ user, size = 38 }: MemberAvatarProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    avatar: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: colors.surface
+    },
+    initial: {
+      color: colors.surface,
+      fontWeight: '900'
+    }
+  }), [colors]);
+
   return (
     <View
       style={[
@@ -27,16 +43,3 @@ export function MemberAvatar({ user, size = 38 }: MemberAvatarProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  avatar: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.surface
-  },
-  initial: {
-    color: colors.surface,
-    fontWeight: '900'
-  }
-});

@@ -637,6 +637,61 @@ def api_logout():
     return jsonify({'success': True})
 
 
+@api.route('/account/export', methods=['GET'])
+@jwt_required()
+def api_account_export():
+    uid, user, wg = current_api_user_and_wg()
+    if not user:
+        return jsonify({'error': 'Not found.'}), 404
+
+    data = {
+        'exported_at': datetime.utcnow().isoformat() + 'Z',
+        'profile': user_to_dict(user),
+        'household': wg_to_dict(wg) if wg else None,
+        'tasks_assigned_to_me': [task_to_dict(t) for t in CleaningTask.query.filter_by(assigned_to=uid).all()],
+        'shopping_items_added_by_me': [shopping_to_dict(i) for i in ShoppingItem.query.filter_by(added_by=uid).all()],
+        'expenses_i_paid': [expense_to_dict(e) for e in Expense.query.filter_by(paid_by=uid).all()],
+        'expense_shares_i_owe': [
+            {'expense_id': s.expense_id, 'amount': s.amount}
+            for s in ExpenseSplit.query.filter_by(user_id=uid).all()
+        ],
+        'feed_posts': [post_to_dict(p) for p in FeedPost.query.filter_by(user_id=uid).all()],
+        'calendar_events_created_by_me': [calendar_event_to_dict(e) for e in CalendarEvent.query.filter_by(created_by=uid).all()],
+        'rules_created_by_me': [rule_to_dict(r) for r in HouseholdRule.query.filter_by(created_by=uid).all()],
+        'polls_created_by_me': [poll_to_dict(p) for p in Poll.query.filter_by(created_by=uid).all()],
+        'conflicts_reported_by_me': [conflict_to_dict(c) for c in ConflictReport.query.filter_by(user_id=uid).all()],
+        'trust_events': [trust_event_to_dict(e) for e in TrustEvent.query.filter_by(user_id=uid).all()],
+    }
+    return jsonify(data)
+
+
+@api.route('/account', methods=['DELETE'])
+@jwt_required()
+def api_delete_account():
+    uid = get_jwt_identity()
+    user = db.session.get(User, uid)
+    if not user:
+        return jsonify({'error': 'Not found.'}), 404
+
+    WGMembership.query.filter_by(user_id=uid).delete()
+    PasswordResetCode.query.filter_by(user_id=uid).delete()
+
+    # Anonymize rather than hard-delete: other members' shared tasks/expenses/history
+    # reference this user's id (NOT NULL foreign keys) and must keep resolving.
+    anon_suffix = secrets.token_hex(4)
+    user.username = f'geloescht-{anon_suffix}'
+    user.email = f'geloescht-{anon_suffix}@zofri.local'
+    user.set_password(secrets.token_urlsafe(32))
+    user.avatar_color = '#9CA3AF'
+    db.session.commit()
+
+    jti = get_jwt()['jti']
+    db.session.add(RevokedToken(jti=jti))
+    db.session.commit()
+
+    return jsonify({'success': True})
+
+
 @api.route('/auth/forgot-password', methods=['POST'])
 @limiter.limit('5 per minute')
 def api_forgot_password():

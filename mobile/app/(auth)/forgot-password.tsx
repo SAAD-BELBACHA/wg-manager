@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { AppHeader } from '@/components/AppHeader';
@@ -8,9 +8,16 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
-import { colors, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function ForgotPasswordScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    form: { gap: spacing.md },
+    link: { color: colors.primary, fontWeight: '800' },
+    error: { color: colors.danger }
+  }), [colors]);
   const [step, setStep] = useState<'email' | 'reset'>('email');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -97,9 +104,3 @@ export default function ForgotPasswordScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  form: { gap: spacing.md },
-  link: { color: colors.primary, fontWeight: '800' },
-  error: { color: colors.danger }
-});

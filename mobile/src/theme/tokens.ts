@@ -30,6 +30,33 @@ export const colors = {
   border: '#E9E2D8'
 };
 
+export function buildColors(theme: 'light' | 'dark') {
+  const dark = theme === 'dark';
+  return {
+    background: dark ? colors.backgroundDark : colors.backgroundLight,
+    surface: dark ? colors.surfaceDark : colors.surfaceLight,
+    surfaceMuted: dark ? '#2C2A35' : colors.surfaceMuted,
+    primary: colors.primary,
+    primarySoft: dark ? '#2C2952' : colors.primarySoft,
+    lime: colors.lime,
+    limeSoft: dark ? '#2B3512' : colors.limeSoft,
+    coral: colors.coral,
+    coralSoft: dark ? '#3A2323' : colors.coralSoft,
+    aqua: colors.aqua,
+    aquaSoft: dark ? '#173538' : colors.aquaSoft,
+    text: dark ? colors.textPrimaryDark : colors.textPrimaryLight,
+    textMuted: dark ? colors.textSecondaryDark : colors.textSecondaryLight,
+    success: colors.success,
+    warning: colors.warning,
+    error: colors.error,
+    danger: colors.error,
+    border: dark ? colors.borderDark : colors.borderLight,
+    shadow: colors.shadow
+  };
+}
+
+export type ThemeColors = ReturnType<typeof buildColors>;
+
 export const spacing = {
   xs: 4,
   sm: 8,

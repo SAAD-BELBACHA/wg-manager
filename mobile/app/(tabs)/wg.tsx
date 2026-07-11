@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
@@ -12,10 +12,39 @@ import { MemberAvatar } from '@/components/MemberAvatar';
 import { Screen } from '@/components/Screen';
 import { StatusPill } from '@/components/StatusPill';
 import { HouseholdInfoResponse, User } from '@/types/api';
-import { colors, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function WgScreen() {
   const { token, household } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    wgTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.md
+    },
+    wgCopy: {
+      flex: 1,
+      gap: spacing.sm
+    },
+    memberRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingVertical: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: colors.border
+    },
+    error: {
+      color: colors.danger
+    },
+    featureGrid: {
+      gap: spacing.md,
+      marginTop: spacing.md
+    }
+  }), [colors]);
   const [members, setMembers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -80,31 +109,3 @@ export default function WgScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  wgTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md
-  },
-  wgCopy: {
-    flex: 1,
-    gap: spacing.sm
-  },
-  memberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border
-  },
-  error: {
-    color: colors.danger
-  },
-  featureGrid: {
-    gap: spacing.md,
-    marginTop: spacing.md
-  }
-});

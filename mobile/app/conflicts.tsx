@@ -13,10 +13,12 @@ import { Screen } from '@/components/Screen';
 import { StatusPill } from '@/components/StatusPill';
 import { TextField } from '@/components/TextField';
 import { ConflictReport } from '@/types/api';
-import { colors, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function ConflictsScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
   const [conflicts, setConflicts] = useState<ConflictReport[]>([]);
   const [description, setDescription] = useState('');
   const [solution, setSolution] = useState('');

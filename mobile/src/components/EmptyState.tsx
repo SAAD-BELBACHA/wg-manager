@@ -1,8 +1,9 @@
 import { FontAwesome6 } from '@expo/vector-icons';
-import { ComponentProps } from 'react';
+import { ComponentProps, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
-import { colors, radii, spacing } from '@/theme/tokens';
+import { radii, spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 type EmptyStateProps = {
   title: string;
@@ -11,15 +12,42 @@ type EmptyStateProps = {
   tone?: 'primary' | 'lime' | 'coral' | 'aqua';
 };
 
-const tones = {
-  primary: { bg: colors.primarySoft, fg: colors.primary },
-  lime: { bg: colors.limeSoft, fg: colors.text },
-  coral: { bg: colors.coralSoft, fg: colors.coral },
-  aqua: { bg: colors.aquaSoft, fg: colors.text }
-};
-
 export function EmptyState({ title, body, icon = 'sparkles', tone = 'primary' }: EmptyStateProps) {
+  const colors = useThemeColors();
+  const tones = useMemo(() => ({
+    primary: { bg: colors.primarySoft, fg: colors.primary },
+    lime: { bg: colors.limeSoft, fg: colors.text },
+    coral: { bg: colors.coralSoft, fg: colors.coral },
+    aqua: { bg: colors.aquaSoft, fg: colors.text }
+  }), [colors]);
+  const styles = useMemo(() => StyleSheet.create({
+    wrap: {
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingVertical: spacing.xl
+    },
+    icon: {
+      width: 58,
+      height: 58,
+      borderRadius: radii.lg,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    copy: {
+      gap: spacing.xs,
+      alignItems: 'center'
+    },
+    title: {
+      fontWeight: '900',
+      textAlign: 'center'
+    },
+    body: {
+      color: colors.textMuted,
+      textAlign: 'center'
+    }
+  }), [colors]);
   const toneStyle = tones[tone];
+
   return (
     <View style={styles.wrap}>
       <View style={[styles.icon, { backgroundColor: toneStyle.bg }]}>
@@ -32,30 +60,3 @@ export function EmptyState({ title, body, icon = 'sparkles', tone = 'primary' }:
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrap: {
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.xl
-  },
-  icon: {
-    width: 58,
-    height: 58,
-    borderRadius: radii.lg,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  copy: {
-    gap: spacing.xs,
-    alignItems: 'center'
-  },
-  title: {
-    fontWeight: '900',
-    textAlign: 'center'
-  },
-  body: {
-    color: colors.textMuted,
-    textAlign: 'center'
-  }
-});

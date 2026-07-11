@@ -1,9 +1,10 @@
 import { FontAwesome6 } from '@expo/vector-icons';
-import { ComponentProps } from 'react';
+import { ComponentProps, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { Card } from '@/components/Card';
-import { colors, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 type MetricCardProps = {
   label: string;
@@ -14,6 +15,28 @@ type MetricCardProps = {
 };
 
 export function MetricCard({ label, value, helper, icon, tone = 'plain' }: MetricCardProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    card: {
+      flex: 1,
+      minHeight: 132
+    },
+    top: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm
+    },
+    label: {
+      color: colors.textMuted,
+      fontWeight: '900'
+    },
+    helper: {
+      color: colors.textMuted,
+      fontWeight: '700'
+    }
+  }), [colors]);
+
   return (
     <Card tone={tone} style={styles.card}>
       <View style={styles.top}>
@@ -25,24 +48,3 @@ export function MetricCard({ label, value, helper, icon, tone = 'plain' }: Metri
     </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    flex: 1,
-    minHeight: 132
-  },
-  top: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm
-  },
-  label: {
-    color: colors.textMuted,
-    fontWeight: '900'
-  },
-  helper: {
-    color: colors.textMuted,
-    fontWeight: '700'
-  }
-});

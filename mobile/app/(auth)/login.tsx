@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
@@ -8,10 +8,29 @@ import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { useAuth } from '@/auth/AuthContext';
-import { colors, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function LoginScreen() {
   const { login } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    form: {
+      gap: spacing.md
+    },
+    link: {
+      color: colors.primary,
+      fontWeight: '800'
+    },
+    error: {
+      color: colors.danger
+    },
+    center: {
+      textAlign: 'center',
+      color: colors.primary,
+      fontWeight: '800'
+    }
+  }), [colors]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -59,21 +78,3 @@ export default function LoginScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  form: {
-    gap: spacing.md
-  },
-  link: {
-    color: colors.primary,
-    fontWeight: '800'
-  },
-  error: {
-    color: colors.danger
-  },
-  center: {
-    textAlign: 'center',
-    color: colors.primary,
-    fontWeight: '800'
-  }
-});

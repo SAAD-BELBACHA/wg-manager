@@ -1,9 +1,10 @@
 import * as Haptics from 'expo-haptics';
 import { FontAwesome6 } from '@expo/vector-icons';
-import { ComponentProps } from 'react';
+import { ComponentProps, useMemo } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 import { AppText } from '@/components/AppText';
-import { colors, radii, spacing } from '@/theme/tokens';
+import { radii, spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 type QuickActionProps = {
   label: string;
@@ -12,14 +13,33 @@ type QuickActionProps = {
   onPress: () => void;
 };
 
-const toneStyles = {
-  primary: { bg: colors.primarySoft, fg: colors.primary },
-  lime: { bg: colors.limeSoft, fg: colors.text },
-  coral: { bg: colors.coralSoft, fg: colors.coral },
-  aqua: { bg: colors.aquaSoft, fg: colors.text }
-};
-
 export function QuickAction({ label, icon, tone = 'primary', onPress }: QuickActionProps) {
+  const colors = useThemeColors();
+  const toneStyles = useMemo(() => ({
+    primary: { bg: colors.primarySoft, fg: colors.primary },
+    lime: { bg: colors.limeSoft, fg: colors.text },
+    coral: { bg: colors.coralSoft, fg: colors.coral },
+    aqua: { bg: colors.aquaSoft, fg: colors.text }
+  }), [colors]);
+  const styles = useMemo(() => StyleSheet.create({
+    action: {
+      minWidth: 92,
+      flex: 1,
+      borderRadius: radii.lg,
+      backgroundColor: colors.surface,
+      padding: spacing.md,
+      gap: spacing.sm,
+      alignItems: 'center'
+    },
+    pressed: {
+      transform: [{ scale: 0.97 }],
+      opacity: 0.9
+    },
+    label: {
+      fontWeight: '900',
+      textAlign: 'center'
+    }
+  }), [colors]);
   const toneStyle = toneStyles[tone];
 
   return (
@@ -35,23 +55,3 @@ export function QuickAction({ label, icon, tone = 'primary', onPress }: QuickAct
     </Pressable>
   );
 }
-
-const styles = StyleSheet.create({
-  action: {
-    minWidth: 92,
-    flex: 1,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    gap: spacing.sm,
-    alignItems: 'center'
-  },
-  pressed: {
-    transform: [{ scale: 0.97 }],
-    opacity: 0.9
-  },
-  label: {
-    fontWeight: '900',
-    textAlign: 'center'
-  }
-});

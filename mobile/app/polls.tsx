@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
@@ -11,10 +11,24 @@ import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { Poll } from '@/types/api';
-import { colors, radii, spacing } from '@/theme/tokens';
+import { radii, spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function PollsScreen() {
   const { token } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    form: { gap: spacing.md },
+    poll: { gap: spacing.sm, paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+    option: {
+      backgroundColor: colors.surfaceMuted,
+      borderRadius: radii.lg,
+      padding: spacing.md,
+      gap: spacing.xs,
+      borderWidth: 1,
+      borderColor: colors.border
+    }
+  }), [colors]);
   const [polls, setPolls] = useState<Poll[]>([]);
   const [title, setTitle] = useState('');
   const [options, setOptions] = useState('Ja, Nein');
@@ -78,16 +92,3 @@ export default function PollsScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  form: { gap: spacing.md },
-  poll: { gap: spacing.sm, paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
-  option: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    gap: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.border
-  }
-});

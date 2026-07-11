@@ -1,13 +1,45 @@
 import { router } from 'expo-router';
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { HeroCard } from '@/components/HeroCard';
 import { Screen } from '@/components/Screen';
 import { de } from '@/i18n/de';
-import { colors, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function WelcomeScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    heroWrap: {
+      flex: 1,
+      justifyContent: 'center',
+      gap: spacing.lg
+    },
+    mark: {
+      width: 76,
+      height: 76,
+      borderRadius: 24,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    markText: {
+      color: colors.surface
+    },
+    heroTitle: {
+      color: colors.surface
+    },
+    heroCopy: {
+      color: 'rgba(255,255,255,0.86)',
+      fontWeight: '700'
+    },
+    actions: {
+      gap: spacing.md
+    }
+  }), [colors]);
+
   return (
     <Screen scroll={false}>
       <View style={styles.heroWrap}>
@@ -29,32 +61,3 @@ export default function WelcomeScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  heroWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: spacing.lg
-  },
-  mark: {
-    width: 76,
-    height: 76,
-    borderRadius: 24,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  markText: {
-    color: colors.surface
-  },
-  heroTitle: {
-    color: colors.surface
-  },
-  heroCopy: {
-    color: 'rgba(255,255,255,0.86)',
-    fontWeight: '700'
-  },
-  actions: {
-    gap: spacing.md
-  }
-});

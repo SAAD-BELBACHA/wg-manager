@@ -1,8 +1,9 @@
 import { FontAwesome6 } from '@expo/vector-icons';
-import { ComponentProps, PropsWithChildren } from 'react';
+import { ComponentProps, PropsWithChildren, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/AppText';
-import { colors, radii, spacing } from '@/theme/tokens';
+import { radii, spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 type ListRowProps = PropsWithChildren<{
   title: string;
@@ -16,6 +17,56 @@ type ListRowProps = PropsWithChildren<{
 }>;
 
 export function ListRow({ title, subtitle, icon, checked, muted, actionLabel, onPress, onAction, children }: ListRowProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.md,
+      paddingVertical: spacing.md,
+      borderTopWidth: 1,
+      borderTopColor: colors.border
+    },
+    pressed: {
+      opacity: 0.84
+    },
+    icon: {
+      width: 36,
+      height: 36,
+      borderRadius: radii.pill,
+      backgroundColor: colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    iconChecked: {
+      backgroundColor: colors.success
+    },
+    copy: {
+      flex: 1,
+      gap: 2
+    },
+    title: {
+      fontWeight: '800'
+    },
+    mutedText: {
+      textDecorationLine: 'line-through',
+      color: colors.textMuted
+    },
+    subtitle: {
+      color: colors.textMuted
+    },
+    action: {
+      borderRadius: radii.pill,
+      backgroundColor: colors.coralSoft,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md
+    },
+    actionText: {
+      color: colors.coral,
+      fontWeight: '900'
+    }
+  }), [colors]);
+
   const content = (
     <>
       <View style={[styles.icon, checked && styles.iconChecked]}>
@@ -39,52 +90,3 @@ export function ListRow({ title, subtitle, icon, checked, muted, actionLabel, on
   }
   return <View style={styles.row}>{content}</View>;
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border
-  },
-  pressed: {
-    opacity: 0.84
-  },
-  icon: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.pill,
-    backgroundColor: colors.primarySoft,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  iconChecked: {
-    backgroundColor: colors.success
-  },
-  copy: {
-    flex: 1,
-    gap: 2
-  },
-  title: {
-    fontWeight: '800'
-  },
-  mutedText: {
-    textDecorationLine: 'line-through',
-    color: colors.textMuted
-  },
-  subtitle: {
-    color: colors.textMuted
-  },
-  action: {
-    borderRadius: radii.pill,
-    backgroundColor: colors.coralSoft,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md
-  },
-  actionText: {
-    color: colors.coral,
-    fontWeight: '900'
-  }
-});

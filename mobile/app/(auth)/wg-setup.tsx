@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
@@ -8,10 +8,20 @@ import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { useAuth } from '@/auth/AuthContext';
-import { spacing, colors } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function WgSetupScreen() {
   const { createHousehold, joinHousehold } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => StyleSheet.create({
+    form: {
+      gap: spacing.md
+    },
+    error: {
+      color: colors.danger
+    }
+  }), [colors]);
   const [name, setName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState<'create' | 'join' | null>(null);
@@ -77,12 +87,3 @@ export default function WgSetupScreen() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  form: {
-    gap: spacing.md
-  },
-  error: {
-    color: colors.danger
-  }
-});

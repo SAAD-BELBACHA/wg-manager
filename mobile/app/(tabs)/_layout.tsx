@@ -1,10 +1,12 @@
 import { FontAwesome6 } from '@expo/vector-icons';
 import { Redirect, Tabs } from 'expo-router';
 import { useAuth } from '@/auth/AuthContext';
-import { colors, radii } from '@/theme/tokens';
+import { radii } from '@/theme/tokens';
+import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function TabsLayout() {
   const { token, household, booting } = useAuth();
+  const colors = useThemeColors();
 
   if (!booting && !token) return <Redirect href="/(auth)/welcome" />;
   if (!booting && token && !household) return <Redirect href="/(auth)/wg-setup" />;
