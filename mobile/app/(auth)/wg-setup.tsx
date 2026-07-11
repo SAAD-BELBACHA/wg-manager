@@ -10,6 +10,7 @@ import { Screen } from '@/components/Screen';
 import { StatusPill } from '@/components/StatusPill';
 import { TextField } from '@/components/TextField';
 import { useAuth } from '@/auth/AuthContext';
+import { useTranslation } from '@/i18n/I18nContext';
 import { PENDING_INVITE_KEY } from '@/invite';
 import { spacing } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/ThemeContext';
@@ -17,6 +18,7 @@ import { useThemeColors } from '@/theme/ThemeContext';
 export default function WgSetupScreen() {
   const { createHousehold, joinHousehold } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [invitedVia, setInvitedVia] = useState(false);
   const styles = useMemo(() => StyleSheet.create({
     form: {
@@ -44,7 +46,7 @@ export default function WgSetupScreen() {
   async function create() {
     setError('');
     if (!name.trim()) {
-      setError('WG-Name ist erforderlich.');
+      setError(t('wgSetup.nameRequired'));
       return;
     }
 
@@ -53,7 +55,7 @@ export default function WgSetupScreen() {
       await createHousehold(name.trim());
       router.replace('/(tabs)');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'WG konnte nicht erstellt werden.');
+      setError(err instanceof Error ? err.message : t('wgSetup.createFailed'));
     } finally {
       setLoading(null);
     }
@@ -62,7 +64,7 @@ export default function WgSetupScreen() {
   async function join() {
     setError('');
     if (!inviteCode.trim()) {
-      setError('Einladungscode ist erforderlich.');
+      setError(t('wgSetup.codeRequired'));
       return;
     }
 
@@ -71,7 +73,7 @@ export default function WgSetupScreen() {
       await joinHousehold(inviteCode.trim().toUpperCase());
       router.replace('/(tabs)');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'WG konnte nicht beigetreten werden.');
+      setError(err instanceof Error ? err.message : t('wgSetup.joinFailed'));
     } finally {
       setLoading(null);
     }
@@ -80,13 +82,13 @@ export default function WgSetupScreen() {
   const joinCard = (
     <Card tone={invitedVia ? 'aqua' : 'soft'}>
       <View style={styles.form}>
-        {invitedVia ? <StatusPill label="Du wurdest eingeladen" tone="primary" /> : null}
-        <AppText variant="h2">WG beitreten</AppText>
+        {invitedVia ? <StatusPill label={t('wgSetup.invitedBadge')} tone="primary" /> : null}
+        <AppText variant="h2">{t('wgSetup.joinTitle')}</AppText>
         {invitedVia ? (
-          <AppText variant="muted">Dein Einladungscode ist schon eingetragen — nur noch bestätigen.</AppText>
+          <AppText variant="muted">{t('wgSetup.joinPrefilled')}</AppText>
         ) : null}
-        <TextField label="Einladungscode" value={inviteCode} onChangeText={setInviteCode} autoCapitalize="characters" />
-        <Button title="Beitreten" icon="right-to-bracket" variant={invitedVia ? 'primary' : 'secondary'} loading={loading === 'join'} onPress={join} />
+        <TextField label={t('wgSetup.inviteCode')} value={inviteCode} onChangeText={setInviteCode} autoCapitalize="characters" />
+        <Button title={t('wgSetup.joinButton')} icon="right-to-bracket" variant={invitedVia ? 'primary' : 'secondary'} loading={loading === 'join'} onPress={join} />
       </View>
     </Card>
   );
@@ -94,9 +96,9 @@ export default function WgSetupScreen() {
   const createCard = (
     <Card tone={invitedVia ? 'soft' : 'aqua'}>
       <View style={styles.form}>
-        <AppText variant="h2">Neue WG erstellen</AppText>
-        <TextField label="WG-Name" value={name} onChangeText={setName} />
-        <Button title="WG erstellen" icon="plus" variant={invitedVia ? 'secondary' : 'primary'} loading={loading === 'create'} onPress={create} />
+        <AppText variant="h2">{t('wgSetup.createTitle')}</AppText>
+        <TextField label={t('wgSetup.wgName')} value={name} onChangeText={setName} />
+        <Button title={t('wgSetup.createButton')} icon="plus" variant={invitedVia ? 'secondary' : 'primary'} loading={loading === 'create'} onPress={create} />
       </View>
     </Card>
   );
@@ -104,9 +106,9 @@ export default function WgSetupScreen() {
   return (
     <Screen>
       <AppHeader
-        title={invitedVia ? 'Fast drin' : 'Deine WG'}
-        subtitle={invitedVia ? 'Tritt der WG bei, zu der du eingeladen wurdest.' : 'Erstelle eine WG oder tritt per Einladungscode bei.'}
-        eyebrow="Home"
+        title={invitedVia ? t('wgSetup.invitedTitle') : t('wgSetup.title')}
+        subtitle={invitedVia ? t('wgSetup.invitedSubtitle') : t('wgSetup.subtitle')}
+        eyebrow={t('wgSetup.eyebrow')}
         icon="people-roof"
       />
 

@@ -12,6 +12,7 @@ import { ListRow } from '@/components/ListRow';
 import { MetricCard } from '@/components/MetricCard';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
+import { useTranslation } from '@/i18n/I18nContext';
 import { Expense, FinanceResponse } from '@/types/api';
 import { spacing } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/ThemeContext';
@@ -19,6 +20,7 @@ import { useThemeColors } from '@/theme/ThemeContext';
 export default function ExpensesScreen() {
   const { token } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => StyleSheet.create({
     metrics: {
       flexDirection: 'row',
@@ -47,7 +49,7 @@ export default function ExpensesScreen() {
     setError('');
     apiRequest<FinanceResponse>('/finance', { token })
       .then(setFinance)
-      .catch(err => setError(err instanceof Error ? err.message : 'Ausgaben konnten nicht geladen werden.'))
+      .catch(err => setError(err instanceof Error ? err.message : t('expenses.loadError')))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -74,7 +76,7 @@ export default function ExpensesScreen() {
       setAmount('');
       loadFinance();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ausgabe konnte nicht erstellt werden.');
+      setError(err instanceof Error ? err.message : t('expenses.createFailed'));
     } finally {
       setSaving(false);
     }
@@ -94,19 +96,19 @@ export default function ExpensesScreen() {
       } : current);
       loadFinance();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ausgabe konnte nicht gelöscht werden.');
+      setError(err instanceof Error ? err.message : t('expenses.deleteFailed'));
     }
   }
 
   return (
     <Screen>
-      <AppHeader title="Ausgaben" subtitle="Kosten fair erfassen, Balances ruhig halten." eyebrow="Money" icon="wallet" />
+      <AppHeader title={t('expenses.title')} subtitle={t('expenses.subtitle')} eyebrow={t('expenses.eyebrow')} icon="wallet" />
 
       <Card tone="soft">
         <View style={styles.form}>
-          <TextField label="Titel" value={title} onChangeText={setTitle} placeholder="z.B. Strom" />
-          <TextField label="Betrag" value={amount} onChangeText={setAmount} placeholder="z.B. 24.50" keyboardType="decimal-pad" />
-          <Button title="Ausgabe hinzufügen" icon="plus" loading={saving} onPress={addExpense} />
+          <TextField label={t('expenses.expenseTitle')} value={title} onChangeText={setTitle} placeholder={t('expenses.titlePlaceholder')} />
+          <TextField label={t('expenses.amount')} value={amount} onChangeText={setAmount} placeholder={t('expenses.amountPlaceholder')} keyboardType="decimal-pad" />
+          <Button title={t('expenses.addExpense')} icon="plus" loading={saving} onPress={addExpense} />
         </View>
       </Card>
 
@@ -116,34 +118,34 @@ export default function ExpensesScreen() {
       {finance ? (
         <>
           <View style={styles.metrics}>
-            <MetricCard label="Gesamt" value={`${finance.total.toFixed(2)} EUR`} helper={`${finance.expenses.length} Ausgaben`} icon="receipt" tone="lime" />
-            <MetricCard label="Offen" value={String(finance.debts.length)} helper="Balances" icon="scale-balanced" tone="aqua" />
+            <MetricCard label={t('expenses.total')} value={`${finance.total.toFixed(2)} EUR`} helper={t('expenses.totalHelper', { count: finance.expenses.length })} icon="receipt" tone="lime" />
+            <MetricCard label={t('expenses.balancesOpen')} value={String(finance.debts.length)} helper={t('expenses.balancesHelper')} icon="scale-balanced" tone="aqua" />
           </View>
 
           <Card>
-            <AppText variant="h2">Offene Schulden</AppText>
+            <AppText variant="h2">{t('expenses.openDebts')}</AppText>
             {finance.debts.length ? finance.debts.map(debt => (
               <ListRow
                 key={`${debt.from_user.id}-${debt.to_user.id}-${debt.amount}`}
                 title={`${debt.amount.toFixed(2)} EUR`}
-                subtitle={`${debt.from_user.username} schuldet ${debt.to_user.username}`}
+                subtitle={t('expenses.owes', { from: debt.from_user.username, to: debt.to_user.username })}
                 icon="arrow-right-arrow-left"
               />
-            )) : <EmptyState title="Alles ausgeglichen" body="Keine offenen Schulden gerade." icon="scale-balanced" tone="lime" />}
+            )) : <EmptyState title={t('expenses.emptyDebtsTitle')} body={t('expenses.emptyDebtsBody')} icon="scale-balanced" tone="lime" />}
           </Card>
 
           <Card>
-            <AppText variant="h2">Letzte Ausgaben</AppText>
+            <AppText variant="h2">{t('expenses.recent')}</AppText>
             {finance.expenses.length ? finance.expenses.map(expense => (
               <ListRow
                 key={expense.id}
                 title={expense.title}
-                subtitle={`${expense.amount.toFixed(2)} EUR · bezahlt von ${expense.paid_by.username}`}
+                subtitle={t('expenses.paidBy', { amount: `${expense.amount.toFixed(2)} EUR`, name: expense.paid_by.username })}
                 icon="receipt"
-                actionLabel="Löschen"
+                actionLabel={t('common.delete')}
                 onAction={() => deleteExpense(expense)}
               />
-            )) : <EmptyState title="Noch keine Ausgaben" body="Erste Rechnung eintragen, Balance läuft." icon="receipt" tone="aqua" />}
+            )) : <EmptyState title={t('expenses.emptyExpensesTitle')} body={t('expenses.emptyExpensesBody')} icon="receipt" tone="aqua" />}
           </Card>
         </>
       ) : null}

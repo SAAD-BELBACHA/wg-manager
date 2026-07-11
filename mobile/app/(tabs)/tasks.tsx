@@ -12,6 +12,7 @@ import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { useTranslation } from '@/i18n/I18nContext';
 import { Task, TasksResponse } from '@/types/api';
 import { spacing } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/ThemeContext';
@@ -19,6 +20,7 @@ import { useThemeColors } from '@/theme/ThemeContext';
 export default function TasksScreen() {
   const { token } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => StyleSheet.create({
     metrics: {
       flexDirection: 'row',
@@ -50,7 +52,7 @@ export default function TasksScreen() {
         setOpenTasks(data.open_tasks);
         setDoneTasks(data.done_tasks);
       })
-      .catch(err => setError(err instanceof Error ? err.message : 'Aufgaben konnten nicht geladen werden.'))
+      .catch(err => setError(err instanceof Error ? err.message : t('tasks.loadError')))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -71,7 +73,7 @@ export default function TasksScreen() {
       setOpenTasks(current => [data.task, ...current]);
       setTitle('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Aufgabe konnte nicht erstellt werden.');
+      setError(err instanceof Error ? err.message : t('tasks.createFailed'));
     } finally {
       setSaving(false);
     }
@@ -92,23 +94,23 @@ export default function TasksScreen() {
         setOpenTasks(current => [data.task, ...current]);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Aufgabe konnte nicht geaendert werden.');
+      setError(err instanceof Error ? err.message : t('tasks.toggleFailed'));
     }
   }
 
   return (
     <Screen>
-      <AppHeader title="Aufgaben" subtitle="Schnell erfassen, fair verteilen, sichtbar erledigen." eyebrow="WG Rhythmus" icon="list-check" />
+      <AppHeader title={t('tasks.title')} subtitle={t('tasks.subtitle')} eyebrow={t('tasks.eyebrow')} icon="list-check" />
 
       <View style={styles.metrics}>
-        <MetricCard label="Offen" value={String(openTasks.length)} helper="wartet gerade" icon="circle" tone="aqua" />
-        <MetricCard label="Erledigt" value={String(doneTasks.length)} helper="letzte Runde" icon="check" tone="lime" />
+        <MetricCard label={t('tasks.open')} value={String(openTasks.length)} helper={t('tasks.openHelper')} icon="circle" tone="aqua" />
+        <MetricCard label={t('tasks.done')} value={String(doneTasks.length)} helper={t('tasks.doneHelper')} icon="check" tone="lime" />
       </View>
 
       <Card tone="soft">
         <View style={styles.form}>
-          <TextField label="Neue Aufgabe" value={title} onChangeText={setTitle} placeholder="z.B. Küche putzen" />
-          <Button title="Aufgabe hinzufügen" icon="plus" loading={saving} onPress={addTask} />
+          <TextField label={t('tasks.newTask')} value={title} onChangeText={setTitle} placeholder={t('tasks.newTaskPlaceholder')} />
+          <Button title={t('tasks.addTask')} icon="plus" loading={saving} onPress={addTask} />
         </View>
       </Card>
 
@@ -116,27 +118,28 @@ export default function TasksScreen() {
       {loading ? <ActivityIndicator color={colors.primary} /> : null}
 
       <Card>
-        <AppText variant="h2">Offen</AppText>
+        <AppText variant="h2">{t('tasks.open')}</AppText>
         {openTasks.length ? openTasks.map(task => (
           <TaskRow key={task.id} task={task} onToggle={() => toggleTask(task)} />
-        )) : <EmptyState title="Alles frei" body="Keine offenen Aufgaben. WG atmet kurz durch." icon="mug-saucer" tone="lime" />}
+        )) : <EmptyState title={t('tasks.emptyOpenTitle')} body={t('tasks.emptyOpenBody')} icon="mug-saucer" tone="lime" />}
       </Card>
 
       <Card>
-        <AppText variant="h2">Erledigt</AppText>
+        <AppText variant="h2">{t('tasks.done')}</AppText>
         {doneTasks.length ? doneTasks.slice(0, 5).map(task => (
           <TaskRow key={task.id} task={task} onToggle={() => toggleTask(task)} done />
-        )) : <EmptyState title="Noch nichts abgehakt" body="Sobald etwas fertig ist, landet es hier." icon="sparkles" tone="aqua" />}
+        )) : <EmptyState title={t('tasks.emptyDoneTitle')} body={t('tasks.emptyDoneBody')} icon="sparkles" tone="aqua" />}
       </Card>
     </Screen>
   );
 }
 
 function TaskRow({ task, done, onToggle }: { task: Task; done?: boolean; onToggle: () => void }) {
+  const { t } = useTranslation();
   return (
     <ListRow
       title={task.title}
-      subtitle={task.assigned_to ? task.assigned_to.username : 'Noch nicht zugewiesen'}
+      subtitle={task.assigned_to ? task.assigned_to.username : t('tasks.unassigned')}
       icon="broom"
       checked={done}
       muted={done}

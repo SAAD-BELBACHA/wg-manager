@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { useTranslation } from '@/i18n/I18nContext';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
 import { AvatarGroup } from '@/components/AvatarGroup';
@@ -19,6 +20,7 @@ import { useThemeColors } from '@/theme/ThemeContext';
 export default function WgScreen() {
   const { token, household } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => StyleSheet.create({
     wgTop: {
       flexDirection: 'row',
@@ -60,25 +62,25 @@ export default function WgScreen() {
     setError('');
     apiRequest<HouseholdInfoResponse>('/wg/info', { token })
       .then(data => alive && setMembers(data.members))
-      .catch(err => alive && setError(err instanceof Error ? err.message : 'WG konnte nicht geladen werden.'))
+      .catch(err => alive && setError(err instanceof Error ? err.message : t('wg.loadError')))
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
   }, [token]));
 
   return (
     <Screen>
-      <AppHeader title="WG" subtitle="Mitglieder, Regeln, Stimmung und Entscheidungen." eyebrow="Home" icon="people-roof" />
+      <AppHeader title={t('wg.title')} subtitle={t('wg.subtitle')} eyebrow={t('wg.eyebrow')} icon="people-roof" />
 
       <Card tone="aqua">
         <View style={styles.wgTop}>
           <View style={styles.wgCopy}>
-            <StatusPill label="Aktuelle WG" tone="primary" />
+            <StatusPill label={t('wg.currentWg')} tone="primary" />
             <AppText variant="h2">{household?.name}</AppText>
-            <AppText variant="muted">Code: {household?.invite_code}</AppText>
+            <AppText variant="muted">{t('wg.code', { code: household?.invite_code || '' })}</AppText>
           </View>
           {members.length ? <AvatarGroup members={members} /> : null}
         </View>
-        <Button title="Mitbewohner einladen" icon="user-plus" onPress={() => router.push('/invite')} />
+        <Button title={t('wg.inviteButton')} icon="user-plus" onPress={() => router.push('/invite')} />
       </Card>
 
       {loading ? <ActivityIndicator color={colors.primary} /> : null}
@@ -86,16 +88,16 @@ export default function WgScreen() {
 
       {!loading && members.length <= 1 ? (
         <Card tone="lime">
-          <AppText variant="h2">Noch allein hier 👋</AppText>
+          <AppText variant="h2">{t('wg.aloneTitle')}</AppText>
           <AppText variant="muted">
-            Zofri wird gut, sobald deine Mitbewohner dabei sind — Aufgaben, Ausgaben und Einkäufe teilen sich dann automatisch.
+            {t('wg.aloneBody')}
           </AppText>
-          <Button title="Jetzt einladen" icon="paper-plane" onPress={() => router.push('/invite')} />
+          <Button title={t('wg.aloneCta')} icon="paper-plane" onPress={() => router.push('/invite')} />
         </Card>
       ) : null}
 
       <Card>
-        <AppText variant="h2">Mitglieder</AppText>
+        <AppText variant="h2">{t('wg.members')}</AppText>
         {members.length ? members.map(member => (
           <View key={member.id} style={styles.memberRow}>
             <MemberAvatar user={member} />
@@ -104,18 +106,18 @@ export default function WgScreen() {
               <AppText variant="small" style={{ color: colors.textMuted }}>{member.email}</AppText>
             </View>
           </View>
-        )) : <AppText variant="muted">Noch keine Mitglieder geladen.</AppText>}
+        )) : <AppText variant="muted">{t('wg.noMembers')}</AppText>}
       </Card>
 
       <Card>
-        <AppText variant="h2">WG-Bereiche</AppText>
+        <AppText variant="h2">{t('wg.areas')}</AppText>
         <View style={styles.featureGrid}>
-          <FeatureTile title="Kalender" subtitle="Termine und Abwesenheit" icon="calendar-days" tone="aqua" onPress={() => router.push('/calendar')} />
-          <FeatureTile title="Regeln" subtitle="Hausregeln und Vorschläge" icon="book" tone="lime" onPress={() => router.push('/rules')} />
-          <FeatureTile title="Abstimmungen" subtitle="Entscheidungen fair treffen" icon="square-poll-vertical" tone="primary" onPress={() => router.push('/polls')} />
-          <FeatureTile title="Stimmung" subtitle="Wöchentlicher Check-in" icon="face-smile" tone="coral" onPress={() => router.push('/mood')} />
-          <FeatureTile title="Konflikte" subtitle="Sachlich klären" icon="comments" tone="aqua" onPress={() => router.push('/conflicts')} />
-          <FeatureTile title="Scan" subtitle="Kassenzettel Workflow" icon="camera" tone="lime" onPress={() => router.push('/receipt-scan')} />
+          <FeatureTile title={t('wg.calendar')} subtitle={t('wg.calendarSub')} icon="calendar-days" tone="aqua" onPress={() => router.push('/calendar')} />
+          <FeatureTile title={t('wg.rules')} subtitle={t('wg.rulesSub')} icon="book" tone="lime" onPress={() => router.push('/rules')} />
+          <FeatureTile title={t('wg.polls')} subtitle={t('wg.pollsSub')} icon="square-poll-vertical" tone="primary" onPress={() => router.push('/polls')} />
+          <FeatureTile title={t('wg.mood')} subtitle={t('wg.moodSub')} icon="face-smile" tone="coral" onPress={() => router.push('/mood')} />
+          <FeatureTile title={t('wg.conflicts')} subtitle={t('wg.conflictsSub')} icon="comments" tone="aqua" onPress={() => router.push('/conflicts')} />
+          <FeatureTile title={t('wg.scan')} subtitle={t('wg.scanSub')} icon="camera" tone="lime" onPress={() => router.push('/receipt-scan')} />
         </View>
       </Card>
     </Screen>

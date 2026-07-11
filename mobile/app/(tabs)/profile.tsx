@@ -8,14 +8,16 @@ import { FeatureTile } from '@/components/FeatureTile';
 import { MemberAvatar } from '@/components/MemberAvatar';
 import { Screen } from '@/components/Screen';
 import { useAuth } from '@/auth/AuthContext';
+import { useTranslation } from '@/i18n/I18nContext';
 import { spacing } from '@/theme/tokens';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
+  const { t } = useTranslation();
 
   return (
     <Screen>
-      <AppHeader title="Profil" subtitle="Konto, Vertrauen, Meldungen und Einstellungen." eyebrow="Du" icon="circle-user" />
+      <AppHeader title={t('profile.title')} subtitle={t('profile.subtitle')} eyebrow={t('profile.eyebrow')} icon="circle-user" />
       <Card tone="aqua">
         <View style={styles.profileRow}>
           {user ? <MemberAvatar user={user} size={64} /> : null}
@@ -27,12 +29,12 @@ export default function ProfileScreen() {
       </Card>
       <Card>
         <View style={styles.linkList}>
-          <FeatureTile title="Vertrauensprofil" subtitle="Private Zuverlässigkeit" icon="shield-heart" tone="lime" onPress={() => router.push('/trust')} />
-          <FeatureTile title="Benachrichtigungen" subtitle="In-App Meldungen" icon="bell" tone="aqua" onPress={() => router.push('/notifications')} />
-          <FeatureTile title="Einstellungen" subtitle="Sprache, Datenschutz, Hilfe" icon="gear" tone="primary" onPress={() => router.push('/settings')} />
+          <FeatureTile title={t('profile.trust')} subtitle={t('profile.trustSub')} icon="shield-heart" tone="lime" onPress={() => router.push('/trust')} />
+          <FeatureTile title={t('profile.notifications')} subtitle={t('profile.notificationsSub')} icon="bell" tone="aqua" onPress={() => router.push('/notifications')} />
+          <FeatureTile title={t('profile.settings')} subtitle={t('profile.settingsSub')} icon="gear" tone="primary" onPress={() => router.push('/settings')} />
         </View>
       </Card>
-      <Button title="Abmelden" icon="right-from-bracket" variant="secondary" onPress={logout} />
+      <Button title={t('profile.logout')} icon="right-from-bracket" variant="secondary" onPress={logout} />
     </Screen>
   );
 }

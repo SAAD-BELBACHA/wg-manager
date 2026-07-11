@@ -5,12 +5,13 @@ import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { HeroCard } from '@/components/HeroCard';
 import { Screen } from '@/components/Screen';
-import { de } from '@/i18n/de';
+import { useTranslation } from '@/i18n/I18nContext';
 import { spacing } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function WelcomeScreen() {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => StyleSheet.create({
     heroWrap: {
       flex: 1,
@@ -47,15 +48,15 @@ export default function WelcomeScreen() {
           <AppText variant="title" style={styles.markText}>Z</AppText>
         </View>
         <AppText variant="title">Zofri</AppText>
-        <AppText variant="muted">{de.welcomeBody}</AppText>
+        <AppText variant="muted">{t('welcome.tagline')}</AppText>
       </View>
 
       <HeroCard accent="primary">
-        <AppText variant="h1" style={styles.heroTitle}>{de.welcomeTitle}</AppText>
-        <AppText style={styles.heroCopy}>WG organisieren, ohne dass es sich nach Büro anfühlt.</AppText>
+        <AppText variant="h1" style={styles.heroTitle}>{t('welcome.heroTitle')}</AppText>
+        <AppText style={styles.heroCopy}>{t('welcome.heroBody')}</AppText>
         <View style={styles.actions}>
-          <Button title={de.login} icon="right-to-bracket" onPress={() => router.push('/(auth)/login')} />
-          <Button title={de.register} variant="secondary" onPress={() => router.push('/(auth)/register')} />
+          <Button title={t('welcome.login')} icon="right-to-bracket" onPress={() => router.push('/(auth)/login')} />
+          <Button title={t('welcome.register')} variant="secondary" onPress={() => router.push('/(auth)/register')} />
         </View>
       </HeroCard>
     </Screen>

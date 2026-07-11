@@ -10,12 +10,14 @@ import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
+import { useTranslation } from '@/i18n/I18nContext';
 import { radii, spacing } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function InviteScreen() {
   const { household } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   const code = household?.invite_code || '';
@@ -61,7 +63,7 @@ export default function InviteScreen() {
   }
 
   async function shareLink() {
-    const message = `Komm in unsere WG "${household?.name}" auf Zofri! Öffne den Link und der Code ist schon drin:\n${joinUrl}\n\nOder gib den Code manuell ein: ${code}`;
+    const message = t('invite.shareMessage', { name: household?.name || '', url: joinUrl, code });
     if (Platform.OS === 'web' && !(navigator as unknown as { share?: unknown }).share) {
       await Clipboard.setStringAsync(message);
       setCopied(true);
@@ -77,13 +79,13 @@ export default function InviteScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Mitbewohner einladen" subtitle="Ohne dass jemand einen Code abtippen muss." eyebrow="Einladen" icon="user-plus" back />
+      <AppHeader title={t('invite.title')} subtitle={t('invite.subtitle')} eyebrow={t('invite.eyebrow')} icon="user-plus" back />
 
       <Card tone="soft">
         <View style={styles.intro}>
           <AppText variant="h2">{household?.name}</AppText>
           <AppText variant="muted">
-            Teile den Link oder lass die Kamera deiner Mitbewohner den QR-Code scannen.
+            {t('invite.shareHint')}
           </AppText>
         </View>
       </Card>
@@ -92,24 +94,20 @@ export default function InviteScreen() {
         <View style={styles.qrWrap}>
           {code ? <QRCode value={joinUrl} size={196} color="#1D1B22" backgroundColor="#FFFFFF" /> : null}
         </View>
-        <AppText variant="tiny" style={styles.codeLabel}>EINLADUNGSCODE</AppText>
+        <AppText variant="tiny" style={styles.codeLabel}>{t('invite.codeLabel')}</AppText>
         <Pressable onPress={copyCode} style={styles.codePill}>
           <AppText style={styles.code}>{code}</AppText>
         </Pressable>
-        {copied ? <AppText variant="small" style={styles.copyHint}>In Zwischenablage kopiert ✓</AppText> : null}
+        {copied ? <AppText variant="small" style={styles.copyHint}>{t('invite.copied')}</AppText> : null}
       </Card>
 
-      <Button title="Einladung teilen" icon="share-nodes" onPress={shareLink} />
-      <Button title="Code kopieren" icon="copy" variant="secondary" onPress={copyCode} />
+      <Button title={t('invite.share')} icon="share-nodes" onPress={shareLink} />
+      <Button title={t('invite.copy')} icon="copy" variant="secondary" onPress={copyCode} />
 
       <Card>
-        <AppText variant="h2">So geht's</AppText>
+        <AppText variant="h2">{t('invite.howTitle')}</AppText>
         <View style={styles.steps}>
-          {[
-            'Schick den Link oder QR-Code an deine Mitbewohner.',
-            'Sie öffnen ihn, erstellen ein Konto — der Code ist schon eingetragen.',
-            'Ihr seht sofort dieselben Aufgaben, Ausgaben und Einkäufe.'
-          ].map((text, index) => (
+          {[t('invite.step1'), t('invite.step2'), t('invite.step3')].map((text, index) => (
             <View key={index} style={styles.step}>
               <View style={styles.stepNum}>
                 <AppText variant="tiny" style={styles.stepNumText}>{index + 1}</AppText>

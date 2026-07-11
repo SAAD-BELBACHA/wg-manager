@@ -8,11 +8,13 @@ import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
+import { useTranslation } from '@/i18n/I18nContext';
 import { spacing } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function ForgotPasswordScreen() {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => StyleSheet.create({
     form: { gap: spacing.md },
     link: { color: colors.primary, fontWeight: '800' },
@@ -29,7 +31,7 @@ export default function ForgotPasswordScreen() {
   async function requestCode() {
     setError('');
     if (!email) {
-      setError('E-Mail ist erforderlich.');
+      setError(t('forgot.emailRequired'));
       return;
     }
     setLoading(true);
@@ -41,7 +43,7 @@ export default function ForgotPasswordScreen() {
       setInfo(data.message);
       setStep('reset');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Anfrage fehlgeschlagen.');
+      setError(err instanceof Error ? err.message : t('forgot.requestFailed'));
     } finally {
       setLoading(false);
     }
@@ -50,7 +52,7 @@ export default function ForgotPasswordScreen() {
   async function resetPassword() {
     setError('');
     if (!code || password.length < 6) {
-      setError('Code und ein Passwort mit mindestens 6 Zeichen sind erforderlich.');
+      setError(t('forgot.resetRequired'));
       return;
     }
     setLoading(true);
@@ -61,7 +63,7 @@ export default function ForgotPasswordScreen() {
       });
       router.replace('/(auth)/login');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Zurücksetzen fehlgeschlagen.');
+      setError(err instanceof Error ? err.message : t('forgot.resetFailed'));
     } finally {
       setLoading(false);
     }
@@ -70,9 +72,9 @@ export default function ForgotPasswordScreen() {
   return (
     <Screen>
       <AppHeader
-        title="Passwort"
-        subtitle={step === 'email' ? 'Wir senden dir einen Code an deine E-Mail.' : 'Code eingeben und neues Passwort setzen.'}
-        eyebrow="Hilfe"
+        title={t('forgot.title')}
+        subtitle={step === 'email' ? t('forgot.subtitleEmail') : t('forgot.subtitleReset')}
+        eyebrow={t('forgot.eyebrow')}
         icon="key"
         back
       />
@@ -80,27 +82,27 @@ export default function ForgotPasswordScreen() {
       {step === 'email' ? (
         <Card tone="soft">
           <View style={styles.form}>
-            <TextField label="E-Mail" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+            <TextField label={t('auth.email')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
             {error ? <AppText variant="small" style={styles.error}>{error}</AppText> : null}
-            <Button title="Code anfordern" icon="paper-plane" loading={loading} onPress={requestCode} />
+            <Button title={t('forgot.requestCode')} icon="paper-plane" loading={loading} onPress={requestCode} />
           </View>
         </Card>
       ) : (
         <Card tone="soft">
           <View style={styles.form}>
             {info ? <AppText variant="muted">{info}</AppText> : null}
-            <TextField label="Code (6-stellig)" value={code} onChangeText={setCode} keyboardType="number-pad" />
-            <TextField label="Neues Passwort" value={password} onChangeText={setPassword} secureTextEntry />
+            <TextField label={t('forgot.code')} value={code} onChangeText={setCode} keyboardType="number-pad" />
+            <TextField label={t('forgot.newPassword')} value={password} onChangeText={setPassword} secureTextEntry />
             {error ? <AppText variant="small" style={styles.error}>{error}</AppText> : null}
-            <Button title="Passwort setzen" icon="key" loading={loading} onPress={resetPassword} />
+            <Button title={t('forgot.setPassword')} icon="key" loading={loading} onPress={resetPassword} />
             <Pressable onPress={requestCode}>
-              <AppText variant="small" style={styles.link}>Code erneut senden</AppText>
+              <AppText variant="small" style={styles.link}>{t('forgot.resend')}</AppText>
             </Pressable>
           </View>
         </Card>
       )}
 
-      <Button title="Zurück zum Login" variant="ghost" icon="chevron-left" onPress={() => router.back()} />
+      <Button title={t('forgot.backToLogin')} variant="ghost" icon="chevron-left" onPress={() => router.back()} />
     </Screen>
   );
 }

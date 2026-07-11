@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '@/auth/AuthContext';
+import { I18nProvider } from '@/i18n/I18nContext';
 import { ThemeProvider, useTheme } from '@/theme/ThemeContext';
 
 function ThemedApp() {
@@ -15,8 +16,10 @@ function ThemedApp() {
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <ThemedApp />
-    </ThemeProvider>
+    <I18nProvider>
+      <ThemeProvider>
+        <ThemedApp />
+      </ThemeProvider>
+    </I18nProvider>
   );
 }

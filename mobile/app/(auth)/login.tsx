@@ -8,12 +8,14 @@ import { Card } from '@/components/Card';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { useAuth } from '@/auth/AuthContext';
+import { useTranslation } from '@/i18n/I18nContext';
 import { spacing } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/ThemeContext';
 
 export default function LoginScreen() {
   const { login } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => StyleSheet.create({
     form: {
       gap: spacing.md
@@ -40,7 +42,7 @@ export default function LoginScreen() {
   async function submit() {
     setError('');
     if (!email || !password) {
-      setError('E-Mail und Passwort sind erforderlich.');
+      setError(t('auth.loginRequired'));
       return;
     }
 
@@ -49,7 +51,7 @@ export default function LoginScreen() {
       await login(email, password);
       router.replace('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login fehlgeschlagen.');
+      setError(err instanceof Error ? err.message : t('auth.loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -57,23 +59,23 @@ export default function LoginScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Willkommen zurück" subtitle="Melde dich an, um deine WG zu organisieren." eyebrow="Login" icon="right-to-bracket" back />
+      <AppHeader title={t('auth.loginTitle')} subtitle={t('auth.loginSubtitle')} eyebrow={t('auth.loginEyebrow')} icon="right-to-bracket" back />
 
       <Card tone="soft">
         <View style={styles.form}>
-          <TextField label="E-Mail" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
-          <TextField label="Passwort" value={password} onChangeText={setPassword} secureTextEntry={!showPassword} />
+          <TextField label={t('auth.email')} value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+          <TextField label={t('auth.password')} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} />
           <Pressable onPress={() => setShowPassword(value => !value)}>
-            <AppText variant="small" style={styles.link}>{showPassword ? 'Passwort ausblenden' : 'Passwort anzeigen'}</AppText>
+            <AppText variant="small" style={styles.link}>{showPassword ? t('auth.hidePassword') : t('auth.showPassword')}</AppText>
           </Pressable>
           {error ? <AppText variant="small" style={styles.error}>{error}</AppText> : null}
-          <Button title="Einloggen" icon="right-to-bracket" loading={loading} onPress={submit} />
-          <Button title="Passwort vergessen" variant="ghost" onPress={() => router.push('/(auth)/forgot-password')} />
+          <Button title={t('auth.loginButton')} icon="right-to-bracket" loading={loading} onPress={submit} />
+          <Button title={t('auth.forgotPassword')} variant="ghost" onPress={() => router.push('/(auth)/forgot-password')} />
         </View>
       </Card>
 
       <Pressable onPress={() => router.push('/(auth)/register')}>
-        <AppText style={styles.center}>Noch kein Konto? Registrieren</AppText>
+        <AppText style={styles.center}>{t('auth.noAccount')}</AppText>
       </Pressable>
     </Screen>
   );
