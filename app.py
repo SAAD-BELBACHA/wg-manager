@@ -399,6 +399,11 @@ def mobile_app_url(path='/'):
     return f"{app.config['MOBILE_APP_URL']}{path}"
 
 
+@app.route('/')
+def index():
+    return redirect(mobile_app_url('/'))
+
+
 # ──────────────────────────────────────────────
 #  STATIC FILE SERVING (feed attachments)
 # ──────────────────────────────────────────────
