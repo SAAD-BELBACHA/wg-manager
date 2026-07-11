@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { useTranslation } from '@/i18n/I18nContext';
 import { AppHeader } from '@/components/AppHeader';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
@@ -15,6 +16,7 @@ import { useThemeColors } from '@/theme/ThemeContext';
 export default function NotificationsScreen() {
   const { token } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -38,7 +40,7 @@ export default function NotificationsScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Meldungen" subtitle="Was in deiner WG wichtig war." eyebrow="Inbox" icon="bell" back />
+      <AppHeader title={t('notifications.title')} subtitle={t('notifications.subtitle')} eyebrow={t('notifications.eyebrow')} icon="bell" back />
       {loading ? <ActivityIndicator color={colors.primary} /> : null}
       <Card>
         {notifications.length ? notifications.map(notification => (
@@ -49,9 +51,9 @@ export default function NotificationsScreen() {
             icon={notification.read ? 'envelope-open' : 'bell'}
             onPress={() => markRead(notification)}
           >
-            <StatusPill label={notification.read ? 'gelesen' : 'neu'} tone={notification.read ? 'aqua' : 'coral'} />
+            <StatusPill label={notification.read ? t('notifications.read') : t('notifications.unread')} tone={notification.read ? 'aqua' : 'coral'} />
           </ListRow>
-        )) : <EmptyState title="Keine Meldungen" body="Alles ruhig. Neue Updates erscheinen hier." icon="bell" tone="lime" />}
+        )) : <EmptyState title={t('notifications.emptyTitle')} body={t('notifications.emptyBody')} icon="bell" tone="lime" />}
       </Card>
     </Screen>
   );

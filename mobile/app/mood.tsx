@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { useTranslation } from '@/i18n/I18nContext';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
@@ -15,16 +16,17 @@ import { MoodSummary } from '@/types/api';
 import { radii, spacing } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/ThemeContext';
 
-const RATING_FIELDS: { key: 'wellbeing' | 'fairness' | 'cleanliness' | 'communication'; label: string }[] = [
-  { key: 'wellbeing', label: 'Wohlbefinden' },
-  { key: 'fairness', label: 'Fairness' },
-  { key: 'cleanliness', label: 'Sauberkeit' },
-  { key: 'communication', label: 'Kommunikation' }
+const RATING_FIELDS: { key: 'wellbeing' | 'fairness' | 'cleanliness' | 'communication'; labelKey: string }[] = [
+  { key: 'wellbeing', labelKey: 'mood.wellbeing' },
+  { key: 'fairness', labelKey: 'mood.fairness' },
+  { key: 'cleanliness', labelKey: 'mood.cleanliness' },
+  { key: 'communication', labelKey: 'mood.communication' }
 ];
 
 export default function MoodScreen() {
   const { token } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => StyleSheet.create({
     form: { gap: spacing.md },
     metrics: { gap: spacing.md }
@@ -57,10 +59,10 @@ export default function MoodScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Stimmung" subtitle="Kurzer Check-in, anonym ausgewertet ab genug Antworten." eyebrow="Pulse" icon="face-smile" back />
+      <AppHeader title={t('mood.title')} subtitle={t('mood.subtitle')} eyebrow={t('mood.eyebrow')} icon="face-smile" back />
       <Card tone="coral">
         <AppText variant="muted">
-          Freiwilliger Check-in. Anonyme Auswertung wird erst ab genug Antworten angezeigt.
+          {t('mood.disclaimer')}
         </AppText>
       </Card>
       <Card tone="soft">
@@ -68,29 +70,29 @@ export default function MoodScreen() {
           {RATING_FIELDS.map(field => (
             <RatingSelector
               key={field.key}
-              label={field.label}
+              label={t(field.labelKey)}
               value={ratings[field.key]}
               onChange={v => setRatings(current => ({ ...current, [field.key]: v }))}
             />
           ))}
-          <TextField label="Kommentar optional" value={comment} onChangeText={setComment} placeholder="Was sollte besprochen werden?" />
-          <Button title="Check-in senden" icon="paper-plane" onPress={submitMood} />
+          <TextField label={t('mood.comment')} value={comment} onChangeText={setComment} placeholder={t('mood.commentPlaceholder')} />
+          <Button title={t('mood.submit')} icon="paper-plane" onPress={submitMood} />
         </View>
       </Card>
       {loading ? <ActivityIndicator color={colors.primary} /> : null}
       <Card>
-        <AppText variant="h2">WG-Stimmung</AppText>
+        <AppText variant="h2">{t('mood.wgMood')}</AppText>
         {summary?.visible ? (
           <View style={styles.metrics}>
-            <Metric label="Wohlbefinden" value={summary.wellbeing} />
-            <Metric label="Fairness" value={summary.fairness} />
-            <Metric label="Sauberkeit" value={summary.cleanliness} />
-            <Metric label="Kommunikation" value={summary.communication} />
+            <Metric label={t('mood.wellbeing')} value={summary.wellbeing} />
+            <Metric label={t('mood.fairness')} value={summary.fairness} />
+            <Metric label={t('mood.cleanliness')} value={summary.cleanliness} />
+            <Metric label={t('mood.communication')} value={summary.communication} />
           </View>
         ) : (
-          <EmptyState title="Noch privat" body="Noch nicht genug Antworten für eine anonyme Auswertung." icon="lock" tone="aqua" />
+          <EmptyState title={t('mood.privateTitle')} body={t('mood.privateBody')} icon="lock" tone="aqua" />
         )}
-        <AppText variant="small" style={{ color: colors.textMuted }}>{summary?.count || 0} Antworten</AppText>
+        <AppText variant="small" style={{ color: colors.textMuted }}>{t('mood.answers', { count: summary?.count || 0 })}</AppText>
       </Card>
     </Screen>
   );

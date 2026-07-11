@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { useTranslation } from '@/i18n/I18nContext';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
@@ -19,6 +20,7 @@ import { useThemeColors } from '@/theme/ThemeContext';
 export default function ConflictsScreen() {
   const { token } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [conflicts, setConflicts] = useState<ConflictReport[]>([]);
   const [description, setDescription] = useState('');
   const [solution, setSolution] = useState('');
@@ -54,32 +56,32 @@ export default function ConflictsScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Konflikte" subtitle="Sachlich notieren, bevor es laut wird." eyebrow="Safe" icon="comments" back />
+      <AppHeader title={t('conflicts.title')} subtitle={t('conflicts.subtitle')} eyebrow={t('conflicts.eyebrow')} icon="comments" back />
       <Card tone="aqua">
         <AppText variant="muted">
-          Geschützter Bereich. KI-Umformulierung kommt später; aktuell wird sachlich dokumentiert.
+          {t('conflicts.disclaimer')}
         </AppText>
       </Card>
       <Card tone="soft">
         <View style={styles.form}>
-          <TextField label="Problem" value={description} onChangeText={setDescription} placeholder="Was ist passiert?" />
-          <TextField label="Gewünschte Lösung" value={solution} onChangeText={setSolution} placeholder="Was wäre fair?" />
-          <Button title="Konflikt erfassen" icon="plus" onPress={addConflict} />
+          <TextField label={t('conflicts.problem')} value={description} onChangeText={setDescription} placeholder={t('conflicts.problemPlaceholder')} />
+          <TextField label={t('conflicts.solution')} value={solution} onChangeText={setSolution} placeholder={t('conflicts.solutionPlaceholder')} />
+          <Button title={t('conflicts.submit')} icon="plus" onPress={addConflict} />
         </View>
       </Card>
       {loading ? <ActivityIndicator color={colors.primary} /> : null}
       <Card>
-        <AppText variant="h2">Fälle</AppText>
+        <AppText variant="h2">{t('conflicts.cases')}</AppText>
         {conflicts.length ? conflicts.map(conflict => (
           <ListRow
             key={conflict.id}
             title={conflict.description}
-            subtitle={conflict.desired_solution || 'Keine Lösung angegeben.'}
+            subtitle={conflict.desired_solution || t('conflicts.noSolution')}
             icon="comments"
           >
             <StatusPill label={conflict.status} tone="coral" />
           </ListRow>
-        )) : <EmptyState title="Keine Fälle" body="Gut so. Falls etwas passiert, kann es hier ruhig landen." icon="heart" tone="lime" />}
+        )) : <EmptyState title={t('conflicts.emptyTitle')} body={t('conflicts.emptyBody')} icon="heart" tone="lime" />}
       </Card>
     </Screen>
   );

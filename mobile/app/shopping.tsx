@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { useTranslation } from '@/i18n/I18nContext';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
@@ -19,6 +20,7 @@ import { useThemeColors } from '@/theme/ThemeContext';
 export default function ShoppingScreen() {
   const { token } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => StyleSheet.create({
     metrics: {
       flexDirection: 'row',
@@ -51,7 +53,7 @@ export default function ShoppingScreen() {
         setPending(data.pending);
         setDone(data.done);
       })
-      .catch(err => setError(err instanceof Error ? err.message : 'Einkaufsliste konnte nicht geladen werden.'))
+      .catch(err => setError(err instanceof Error ? err.message : t('shopping.loadError')))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -73,7 +75,7 @@ export default function ShoppingScreen() {
       setName('');
       setQuantity('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Artikel konnte nicht hinzugefügt werden.');
+      setError(err instanceof Error ? err.message : t('shopping.addFailed'));
     } finally {
       setSaving(false);
     }
@@ -94,7 +96,7 @@ export default function ShoppingScreen() {
         setPending(current => [data.item, ...current]);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Artikel konnte nicht geändert werden.');
+      setError(err instanceof Error ? err.message : t('shopping.toggleFailed'));
     }
   }
 
@@ -108,24 +110,24 @@ export default function ShoppingScreen() {
       setPending(current => current.filter(entry => entry.id !== item.id));
       setDone(current => current.filter(entry => entry.id !== item.id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Artikel konnte nicht gelöscht werden.');
+      setError(err instanceof Error ? err.message : t('shopping.deleteFailed'));
     }
   }
 
   return (
     <Screen>
-      <AppHeader title="Einkauf" subtitle="Alles, was fehlt. Schnell abhaken im Laden." eyebrow="Liste" icon="basket-shopping" back />
+      <AppHeader title={t('shopping.title')} subtitle={t('shopping.subtitle')} eyebrow={t('shopping.eyebrow')} icon="basket-shopping" back />
 
       <View style={styles.metrics}>
-        <MetricCard label="Offen" value={String(pending.length)} helper="zu kaufen" icon="basket-shopping" tone="aqua" />
-        <MetricCard label="Gekauft" value={String(done.length)} helper="abgehakt" icon="check" tone="lime" />
+        <MetricCard label={t('shopping.open')} value={String(pending.length)} helper={t('shopping.openHelper')} icon="basket-shopping" tone="aqua" />
+        <MetricCard label={t('shopping.bought')} value={String(done.length)} helper={t('shopping.boughtHelper')} icon="check" tone="lime" />
       </View>
 
       <Card tone="soft">
         <View style={styles.form}>
-          <TextField label="Artikel" value={name} onChangeText={setName} placeholder="z.B. Milch" />
-          <TextField label="Menge" value={quantity} onChangeText={setQuantity} placeholder="z.B. 1l" />
-          <Button title="Artikel hinzufügen" icon="plus" loading={saving} onPress={addItem} />
+          <TextField label={t('shopping.item')} value={name} onChangeText={setName} placeholder={t('shopping.itemPlaceholder')} />
+          <TextField label={t('shopping.quantity')} value={quantity} onChangeText={setQuantity} placeholder={t('shopping.quantityPlaceholder')} />
+          <Button title={t('shopping.addItem')} icon="plus" loading={saving} onPress={addItem} />
         </View>
       </Card>
 
@@ -133,17 +135,17 @@ export default function ShoppingScreen() {
       {error ? <AppText variant="small" style={styles.error}>{error}</AppText> : null}
 
       <Card>
-        <AppText variant="h2">Zu kaufen</AppText>
+        <AppText variant="h2">{t('shopping.toBuy')}</AppText>
         {pending.length ? pending.map(item => (
           <ShoppingRow key={item.id} item={item} onToggle={() => toggleItem(item)} onDelete={() => deleteItem(item)} />
-        )) : <EmptyState title="Liste leer" body="Alles da. Nichts zu schleppen." icon="basket-shopping" tone="lime" />}
+        )) : <EmptyState title={t('shopping.emptyListTitle')} body={t('shopping.emptyListBody')} icon="basket-shopping" tone="lime" />}
       </Card>
 
       <Card>
-        <AppText variant="h2">Gekauft</AppText>
+        <AppText variant="h2">{t('shopping.bought')}</AppText>
         {done.length ? done.slice(0, 8).map(item => (
           <ShoppingRow key={item.id} item={item} done onToggle={() => toggleItem(item)} onDelete={() => deleteItem(item)} />
-        )) : <EmptyState title="Noch nichts gekauft" body="Abgehakte Artikel landen hier." icon="check" tone="aqua" />}
+        )) : <EmptyState title={t('shopping.emptyBoughtTitle')} body={t('shopping.emptyBoughtBody')} icon="check" tone="aqua" />}
       </Card>
     </Screen>
   );
@@ -155,14 +157,15 @@ function ShoppingRow({ item, done, onToggle, onDelete }: {
   onToggle: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <ListRow
       title={item.name}
-      subtitle={`${item.quantity || 'Keine Menge'} · ${item.added_by.username}`}
+      subtitle={`${item.quantity || t('shopping.noQuantity')} · ${item.added_by.username}`}
       icon="basket-shopping"
       checked={done}
       muted={done}
-      actionLabel="Löschen"
+      actionLabel={t('common.delete')}
       onPress={onToggle}
       onAction={onDelete}
     />

@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { useTranslation } from '@/i18n/I18nContext';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
@@ -17,6 +18,7 @@ import { useThemeColors } from '@/theme/ThemeContext';
 export default function PollsScreen() {
   const { token } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => StyleSheet.create({
     form: { gap: spacing.md },
     poll: { gap: spacing.sm, paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
@@ -66,28 +68,28 @@ export default function PollsScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Abstimmungen" subtitle="Schnelle WG-Entscheidungen ohne Endloschat." eyebrow="Vote" icon="square-poll-vertical" back />
+      <AppHeader title={t('polls.title')} subtitle={t('polls.subtitle')} eyebrow={t('polls.eyebrow')} icon="square-poll-vertical" back />
       <Card tone="soft">
         <View style={styles.form}>
-          <TextField label="Frage" value={title} onChangeText={setTitle} placeholder="Worüber abstimmen?" />
-          <TextField label="Optionen" value={options} onChangeText={setOptions} placeholder="Komma getrennt" />
-          <Button title="Abstimmung erstellen" icon="plus" onPress={addPoll} />
+          <TextField label={t('polls.question')} value={title} onChangeText={setTitle} placeholder={t('polls.questionPlaceholder')} />
+          <TextField label={t('polls.options')} value={options} onChangeText={setOptions} placeholder={t('polls.optionsPlaceholder')} />
+          <Button title={t('polls.create')} icon="plus" onPress={addPoll} />
         </View>
       </Card>
       {loading ? <ActivityIndicator color={colors.primary} /> : null}
       <Card>
-        <AppText variant="h2">Aktiv</AppText>
+        <AppText variant="h2">{t('polls.active')}</AppText>
         {polls.length ? polls.map(poll => (
           <View key={poll.id} style={styles.poll}>
             <AppText>{poll.title}</AppText>
             {poll.options.map(option => (
               <Pressable key={option.id} onPress={() => vote(poll, option.id)} style={styles.option}>
                 <AppText>{option.text}</AppText>
-                <AppText variant="small" style={{ color: colors.textMuted }}>{option.votes} Stimmen</AppText>
+                <AppText variant="small" style={{ color: colors.textMuted }}>{t('polls.votes', { count: option.votes })}</AppText>
               </Pressable>
             ))}
           </View>
-        )) : <EmptyState title="Keine Abstimmungen" body="Neue Entscheidungen erscheinen hier." icon="square-poll-vertical" tone="primary" />}
+        )) : <EmptyState title={t('polls.emptyTitle')} body={t('polls.emptyBody')} icon="square-poll-vertical" tone="primary" />}
       </Card>
     </Screen>
   );

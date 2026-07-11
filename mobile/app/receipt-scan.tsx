@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Image, Platform, StyleSheet, View } from 'react-native';
 import { apiRequest, apiUpload } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { useTranslation } from '@/i18n/I18nContext';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
@@ -23,6 +24,7 @@ type PickedImage = {
 export default function ReceiptScanScreen() {
   const { token } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => StyleSheet.create({
     actions: {
       gap: spacing.md,
@@ -66,7 +68,7 @@ export default function ReceiptScanScreen() {
     setError('');
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      setError('Bitte Zugriff auf Fotos erlauben.');
+      setError(t('receipt.photoPermission'));
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -81,7 +83,7 @@ export default function ReceiptScanScreen() {
     setError('');
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      setError('Bitte Kamerazugriff erlauben.');
+      setError(t('receipt.cameraPermission'));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -129,7 +131,7 @@ export default function ReceiptScanScreen() {
       setDate(data.receipt.date);
       setTotal(data.receipt.total == null ? '' : String(data.receipt.total));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'OCR konnte nicht ausgeführt werden.');
+      setError(err instanceof Error ? err.message : t('receipt.ocrFailed'));
     } finally {
       setLoading(false);
     }
@@ -140,7 +142,7 @@ export default function ReceiptScanScreen() {
     setSuccess('');
     const amount = total.replace(',', '.').trim();
     if (!amount || Number.isNaN(Number(amount)) || Number(amount) <= 0) {
-      setError('Bitte geprüften Gesamtbetrag eingeben.');
+      setError(t('receipt.totalRequired'));
       return;
     }
     setSaving(true);
@@ -149,18 +151,18 @@ export default function ReceiptScanScreen() {
         method: 'POST',
         token,
         body: {
-          title: merchant.trim() ? `Kassenbon: ${merchant.trim()}` : 'Kassenbon',
+          title: merchant.trim() ? t('receipt.receiptTitle', { merchant: merchant.trim() }) : t('receipt.receiptTitlePlain'),
           amount
         }
       });
-      setSuccess('Ausgabe wurde nach deiner Prüfung erstellt.');
+      setSuccess(t('receipt.created'));
       setImage(null);
       setOcr(null);
       setMerchant('');
       setDate('');
       setTotal('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ausgabe konnte nicht erstellt werden.');
+      setError(err instanceof Error ? err.message : t('receipt.createFailed'));
     } finally {
       setSaving(false);
     }
@@ -168,45 +170,45 @@ export default function ReceiptScanScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Kassenzettel" subtitle="Kamera, Bildauswahl, Zuschnitt, OCR-Prüfung, Ausgabe." eyebrow="OCR Workflow" icon="camera" back />
+      <AppHeader title={t('receipt.title')} subtitle={t('receipt.subtitle')} eyebrow={t('receipt.eyebrow')} icon="camera" back />
 
       <Card tone="aqua">
-        <StatusPill label="1. Bild erfassen" tone="primary" />
+        <StatusPill label={t('receipt.step1')} tone="primary" />
         <AppText variant="muted">
-          Foto aufnehmen oder Bild auswählen. Zuschneiden startet direkt im System-Dialog.
+          {t('receipt.step1Body')}
         </AppText>
         <View style={styles.actions}>
-          <Button title="Kamera öffnen" icon="camera" onPress={takePhoto} />
-          <Button title="Bild auswählen" icon="image" variant="secondary" onPress={pickFromLibrary} />
+          <Button title={t('receipt.openCamera')} icon="camera" onPress={takePhoto} />
+          <Button title={t('receipt.pickImage')} icon="image" variant="secondary" onPress={pickFromLibrary} />
         </View>
       </Card>
 
       {image ? (
         <Card>
-          <StatusPill label="2. Zuschneiden & OCR" tone="aqua" />
+          <StatusPill label={t('receipt.step2')} tone="aqua" />
           <Image source={{ uri: image.uri }} style={styles.preview} />
-          <Button title="OCR starten" icon="wand-magic-sparkles" loading={loading} onPress={runOcr} />
+          <Button title={t('receipt.runOcr')} icon="wand-magic-sparkles" loading={loading} onPress={runOcr} />
         </Card>
       ) : null}
 
       {ocr ? (
         <Card>
-          <StatusPill label="3. Prüfen vor Speichern" tone="lime" />
+          <StatusPill label={t('receipt.step3')} tone="lime" />
           <AppText variant="muted">{ocr.message}</AppText>
           <View style={styles.form}>
-            <TextField label="Händler" value={merchant} onChangeText={setMerchant} placeholder="z.B. Supermarkt" />
-            <TextField label="Datum" value={date} onChangeText={setDate} placeholder="z.B. 10.07.2026" />
-            <TextField label="Gesamtbetrag" value={total} onChangeText={setTotal} placeholder="z.B. 24.50" keyboardType="decimal-pad" />
+            <TextField label={t('receipt.merchant')} value={merchant} onChangeText={setMerchant} placeholder={t('receipt.merchantPlaceholder')} />
+            <TextField label={t('receipt.date')} value={date} onChangeText={setDate} placeholder={t('receipt.datePlaceholder')} />
+            <TextField label={t('receipt.total')} value={total} onChangeText={setTotal} placeholder={t('receipt.totalPlaceholder')} keyboardType="decimal-pad" />
           </View>
           <Card style={styles.rawTextCard}>
             <AppText variant="small" style={{ color: colors.textMuted }}>
-              OCR Status: {ocr.status}
+              {t('receipt.ocrStatus', { status: ocr.status })}
             </AppText>
             <AppText variant="small">
-              {ocr.receipt.raw_text || 'Kein OCR-Text erkannt. Manueller Fallback bleibt verfügbar.'}
+              {ocr.receipt.raw_text || t('receipt.noText')}
             </AppText>
           </Card>
-          <Button title="Als Ausgabe erstellen" icon="receipt" loading={saving} onPress={createExpense} />
+          <Button title={t('receipt.createExpense')} icon="receipt" loading={saving} onPress={createExpense} />
         </Card>
       ) : null}
 

@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { useTranslation } from '@/i18n/I18nContext';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
@@ -19,6 +20,7 @@ import { useThemeColors } from '@/theme/ThemeContext';
 export default function RulesScreen() {
   const { token } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => StyleSheet.create({
     form: { gap: spacing.md },
     error: { color: colors.danger }
@@ -34,7 +36,7 @@ export default function RulesScreen() {
     setLoading(true);
     apiRequest<{ rules: Rule[] }>('/rules', { token })
       .then(data => setRules(data.rules))
-      .catch(err => setError(err instanceof Error ? err.message : 'Regeln konnten nicht geladen werden.'))
+      .catch(err => setError(err instanceof Error ? err.message : t('rules.loadError')))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -59,30 +61,30 @@ export default function RulesScreen() {
 
   return (
     <Screen>
-      <AppHeader title="WG-Regeln" subtitle="Gemeinsame Erwartungen ohne Zettelchaos." eyebrow="Fairness" icon="book" back />
+      <AppHeader title={t('rules.title')} subtitle={t('rules.subtitle')} eyebrow={t('rules.eyebrow')} icon="book" back />
       <Card tone="soft">
         <View style={styles.form}>
-          <TextField label="Regel" value={title} onChangeText={setTitle} placeholder="z.B. Ruhezeit" />
-          <TextField label="Beschreibung" value={content} onChangeText={setContent} placeholder="Was gilt genau?" />
-          <Button title="Regel vorschlagen" icon="plus" onPress={addRule} />
+          <TextField label={t('rules.rule')} value={title} onChangeText={setTitle} placeholder={t('rules.rulePlaceholder')} />
+          <TextField label={t('rules.description')} value={content} onChangeText={setContent} placeholder={t('rules.descriptionPlaceholder')} />
+          <Button title={t('rules.propose')} icon="plus" onPress={addRule} />
         </View>
       </Card>
       {loading ? <ActivityIndicator color={colors.primary} /> : null}
       {error ? <AppText variant="small" style={styles.error}>{error}</AppText> : null}
       <Card>
-        <AppText variant="h2">Aktive Regeln</AppText>
+        <AppText variant="h2">{t('rules.active')}</AppText>
         {rules.length ? rules.map(rule => (
           <ListRow
             key={rule.id}
             title={rule.title}
-            subtitle={rule.content || 'Keine Beschreibung.'}
+            subtitle={rule.content || t('rules.noDescription')}
             icon="book-open"
-            actionLabel="Archiv"
+            actionLabel={t('rules.archive')}
             onAction={() => archiveRule(rule)}
           >
             <StatusPill label={rule.category} tone="lime" />
           </ListRow>
-        )) : <EmptyState title="Keine Regeln" body="Vorschläge für euer Zusammenleben landen hier." icon="book" tone="lime" />}
+        )) : <EmptyState title={t('rules.emptyTitle')} body={t('rules.emptyBody')} icon="book" tone="lime" />}
       </Card>
     </Screen>
   );

@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
+import { useTranslation } from '@/i18n/I18nContext';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
 import { Card } from '@/components/Card';
@@ -18,6 +19,7 @@ import { useThemeColors } from '@/theme/ThemeContext';
 export default function TrustScreen() {
   const { token } = useAuth();
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const styles = useMemo(() => StyleSheet.create({
     scoreCard: { alignItems: 'center', gap: spacing.md },
     scoreCircle: {
@@ -43,7 +45,7 @@ export default function TrustScreen() {
 
   return (
     <Screen>
-      <AppHeader title="Vertrauen" subtitle="Privates Profil für Zuverlässigkeit und faire Beiträge." eyebrow="Private" icon="shield-heart" back />
+      <AppHeader title={t('trust.title')} subtitle={t('trust.subtitle')} eyebrow={t('trust.eyebrow')} icon="shield-heart" back />
       {loading ? <ActivityIndicator color={colors.primary} /> : null}
       {profile ? (
         <>
@@ -54,23 +56,23 @@ export default function TrustScreen() {
             </View>
             <StatusPill label={profile.level} tone="lime" />
             {!profile.enough_data ? (
-              <AppText variant="muted">Noch nicht genügend verifizierte Aktivitäten.</AppText>
+              <AppText variant="muted">{t('trust.notEnough')}</AppText>
             ) : null}
           </Card>
           <View style={styles.metrics}>
-            <MetricCard label="Aufgaben" value={String(profile.task_reliability)} icon="list-check" tone="aqua" />
-            <MetricCard label="Ausgaben" value={String(profile.payment_reliability)} icon="wallet" tone="lime" />
+            <MetricCard label={t('trust.tasks')} value={String(profile.task_reliability)} icon="list-check" tone="aqua" />
+            <MetricCard label={t('trust.payments')} value={String(profile.payment_reliability)} icon="wallet" tone="lime" />
           </View>
           <Card>
-            <AppText variant="h2">Ereignisse</AppText>
+            <AppText variant="h2">{t('trust.events')}</AppText>
             {profile.events.length ? profile.events.map(event => (
               <ListRow
                 key={event.id}
                 title={event.explanation || event.event_type}
-                subtitle={`${event.points} Punkte`}
+                subtitle={t('trust.points', { points: event.points })}
                 icon="star"
               />
-            )) : <EmptyState title="Noch keine Events" body="Verifizierte Aktivitäten erscheinen hier." icon="star" tone="aqua" />}
+            )) : <EmptyState title={t('trust.emptyTitle')} body={t('trust.emptyBody')} icon="star" tone="aqua" />}
           </Card>
         </>
       ) : null}
