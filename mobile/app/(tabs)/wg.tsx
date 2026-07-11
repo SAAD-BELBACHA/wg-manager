@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/AuthContext';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
 import { AvatarGroup } from '@/components/AvatarGroup';
+import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { FeatureTile } from '@/components/FeatureTile';
 import { MemberAvatar } from '@/components/MemberAvatar';
@@ -77,10 +78,21 @@ export default function WgScreen() {
           </View>
           {members.length ? <AvatarGroup members={members} /> : null}
         </View>
+        <Button title="Mitbewohner einladen" icon="user-plus" onPress={() => router.push('/invite')} />
       </Card>
 
       {loading ? <ActivityIndicator color={colors.primary} /> : null}
       {error ? <AppText variant="small" style={styles.error}>{error}</AppText> : null}
+
+      {!loading && members.length <= 1 ? (
+        <Card tone="lime">
+          <AppText variant="h2">Noch allein hier 👋</AppText>
+          <AppText variant="muted">
+            Zofri wird gut, sobald deine Mitbewohner dabei sind — Aufgaben, Ausgaben und Einkäufe teilen sich dann automatisch.
+          </AppText>
+          <Button title="Jetzt einladen" icon="paper-plane" onPress={() => router.push('/invite')} />
+        </Card>
+      ) : null}
 
       <Card>
         <AppText variant="h2">Mitglieder</AppText>

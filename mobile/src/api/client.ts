@@ -7,6 +7,15 @@ const DEFAULT_API_URL = 'http://127.0.0.1:5001/api/v1';
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL || (__DEV__ ? DEFAULT_API_URL : '');
 
+// Public base URL of the web app itself (used to build shareable invite links).
+// On web we can read the current origin; on native we fall back to the env var
+// or the deployed app URL.
+export const APP_URL =
+  process.env.EXPO_PUBLIC_APP_URL ||
+  (typeof window !== 'undefined' && window.location?.origin
+    ? window.location.origin
+    : 'https://zofri-app.onrender.com');
+
 export class ApiError extends Error {
   status: number;
   code?: string;
