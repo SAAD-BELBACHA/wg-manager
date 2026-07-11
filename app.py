@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, request, flash, jsonify, send_from_directory
+from flask import Flask, redirect, url_for, request, flash, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask_wtf.csrf import CSRFProtect
@@ -25,6 +25,7 @@ app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', os.path.join(os.pa
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32 MB
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'wg-jwt-secret-mobile-dev-key-2024-change-me')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
+app.config['MOBILE_APP_URL'] = os.environ.get('MOBILE_APP_URL', 'https://zofri-app.onrender.com').rstrip('/')
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 ALLOWED_IMAGE = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
@@ -331,69 +332,35 @@ def _safe_next(next_url):
     return next_url
 
 
+def mobile_app_url(path='/'):
+    if not path.startswith('/'):
+        path = f'/{path}'
+    return f"{app.config['MOBILE_APP_URL']}{path}"
+
+
 # ──────────────────────────────────────────────
 #  AUTH ROUTES
 # ──────────────────────────────────────────────
 @app.route('/')
 def index():
-    return redirect(url_for('dashboard') if current_user.is_authenticated else url_for('login'))
+    return redirect(mobile_app_url('/'))
 
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
-    if request.method == 'POST':
-        username = request.form.get('username', '').strip()
-        email    = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        confirm  = request.form.get('confirm_password', '')
-
-        if not all([username, email, password]):
-            flash('Alle Felder sind erforderlich.', 'danger'); return render_template('register.html')
-        if password != confirm:
-            flash('Passwörter stimmen nicht überein.', 'danger'); return render_template('register.html')
-        if len(password) < 6:
-            flash('Passwort muss mindestens 6 Zeichen lang sein.', 'danger'); return render_template('register.html')
-        if User.query.filter_by(username=username).first():
-            flash('Benutzername bereits vergeben.', 'danger'); return render_template('register.html')
-        if User.query.filter_by(email=email).first():
-            flash('E-Mail bereits registriert.', 'danger'); return render_template('register.html')
-
-        color = AVATAR_COLORS[User.query.count() % len(AVATAR_COLORS)]
-        user  = User(username=username, email=email, avatar_color=color)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-        login_user(user)
-        flash(f'Willkommen, {username}! Erstelle oder tritt einer WG bei.', 'success')
-        return redirect(url_for('wg_setup'))
-    return render_template('register.html')
+    return redirect(mobile_app_url('/register'))
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
-    if request.method == 'POST':
-        email    = request.form.get('email', '').strip().lower()
-        password = request.form.get('password', '')
-        remember = bool(request.form.get('remember'))
-        user     = User.query.filter_by(email=email).first()
-        if user and user.check_password(password):
-            login_user(user, remember=remember)
-            flash(f'Willkommen zurück, {user.username}!', 'success')
-            return redirect(_safe_next(request.args.get('next')) or url_for('dashboard'))
-        flash('Ungültige E-Mail oder Passwort.', 'danger')
-    return render_template('login.html')
+    return redirect(mobile_app_url('/login'))
 
 
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
-    flash('Du wurdest abgemeldet.', 'info')
-    return redirect(url_for('login'))
+    return redirect(mobile_app_url('/welcome'))
 
 
 # ──────────────────────────────────────────────
@@ -402,34 +369,7 @@ def logout():
 @app.route('/wg/setup', methods=['GET', 'POST'])
 @login_required
 def wg_setup():
-    if current_user.get_wg():
-        return redirect(url_for('dashboard'))
-    if request.method == 'POST':
-        action = request.form.get('action')
-        if action == 'create':
-            name = request.form.get('wg_name', '').strip()
-            if not name:
-                flash('WG-Name ist erforderlich.', 'danger')
-                return render_template('wg_setup.html')
-            wg = WG(name=name, invite_code=gen_invite_code(), created_by=current_user.id)
-            db.session.add(wg)
-            db.session.flush()
-            db.session.add(WGMembership(user_id=current_user.id, wg_id=wg.id))
-            db.session.commit()
-            flash(f'WG "{name}" erstellt! Einladungscode: {wg.invite_code}', 'success')
-            return redirect(url_for('dashboard'))
-        elif action == 'join':
-            code = request.form.get('invite_code', '').strip().upper()
-            wg   = WG.query.filter_by(invite_code=code).first()
-            if not wg:
-                flash('Ungültiger Einladungscode.', 'danger')
-                return render_template('wg_setup.html')
-            if not WGMembership.query.filter_by(user_id=current_user.id, wg_id=wg.id).first():
-                db.session.add(WGMembership(user_id=current_user.id, wg_id=wg.id))
-                db.session.commit()
-            flash(f'Du bist der WG "{wg.name}" beigetreten!', 'success')
-            return redirect(url_for('dashboard'))
-    return render_template('wg_setup.html')
+    return redirect(mobile_app_url('/wg-setup'))
 
 
 # ──────────────────────────────────────────────
@@ -438,21 +378,7 @@ def wg_setup():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    wg = current_user.get_wg()
-    if not wg:
-        return redirect(url_for('wg_setup'))
-    members         = wg.get_members()
-    open_tasks      = CleaningTask.query.filter_by(wg_id=wg.id, completed=False).count()
-    shopping_count  = ShoppingItem.query.filter_by(wg_id=wg.id, completed=False).count()
-    my_tasks        = CleaningTask.query.filter_by(wg_id=wg.id, assigned_to=current_user.id, completed=False).all()
-    recent_expenses = Expense.query.filter_by(wg_id=wg.id).order_by(Expense.created_at.desc()).limit(5).all()
-    debts           = calculate_debts(wg)
-    my_debts        = [d for d in debts if d['from_user'].id == current_user.id]
-    owed_to_me      = [d for d in debts if d['to_user'].id == current_user.id]
-    return render_template('dashboard.html', wg=wg, members=members, open_tasks=open_tasks,
-                           shopping_count=shopping_count, my_tasks=my_tasks,
-                           recent_expenses=recent_expenses, my_debts=my_debts,
-                           owed_to_me=owed_to_me)
+    return redirect(mobile_app_url('/'))
 
 
 # ──────────────────────────────────────────────
@@ -461,12 +387,7 @@ def dashboard():
 @app.route('/tasks')
 @login_required
 def tasks():
-    wg = current_user.get_wg()
-    if not wg: return redirect(url_for('wg_setup'))
-    members    = wg.get_members()
-    open_tasks = CleaningTask.query.filter_by(wg_id=wg.id, completed=False).order_by(CleaningTask.due_date).all()
-    done_tasks = CleaningTask.query.filter_by(wg_id=wg.id, completed=True).order_by(CleaningTask.completed_at.desc()).limit(15).all()
-    return render_template('tasks.html', wg=wg, members=members, open_tasks=open_tasks, done_tasks=done_tasks)
+    return redirect(mobile_app_url('/tasks'))
 
 
 @app.route('/tasks/add', methods=['POST'])
@@ -544,11 +465,7 @@ def rotate_tasks():
 @app.route('/shopping')
 @login_required
 def shopping():
-    wg = current_user.get_wg()
-    if not wg: return redirect(url_for('wg_setup'))
-    pending = ShoppingItem.query.filter_by(wg_id=wg.id, completed=False).order_by(ShoppingItem.created_at).all()
-    done    = ShoppingItem.query.filter_by(wg_id=wg.id, completed=True).order_by(ShoppingItem.created_at.desc()).limit(30).all()
-    return render_template('shopping.html', wg=wg, pending=pending, done=done)
+    return redirect(mobile_app_url('/shopping'))
 
 
 @app.route('/shopping/add', methods=['POST'])
@@ -610,14 +527,7 @@ def clear_done_shopping():
 @app.route('/finance')
 @login_required
 def finance():
-    wg = current_user.get_wg()
-    if not wg: return redirect(url_for('wg_setup'))
-    members        = wg.get_members()
-    expenses       = Expense.query.filter_by(wg_id=wg.id).order_by(Expense.created_at.desc()).all()
-    debts          = calculate_debts(wg)
-    total_expenses = sum(e.amount for e in expenses)
-    return render_template('finance.html', wg=wg, members=members,
-                           expenses=expenses, debts=debts, total_expenses=total_expenses)
+    return redirect(mobile_app_url('/expenses'))
 
 
 @app.route('/finance/add', methods=['POST'])
@@ -675,10 +585,7 @@ def delete_expense(eid):
 @app.route('/feed')
 @login_required
 def feed():
-    wg = current_user.get_wg()
-    if not wg: return redirect(url_for('wg_setup'))
-    posts = FeedPost.query.filter_by(wg_id=wg.id).order_by(FeedPost.created_at.desc()).limit(50).all()
-    return render_template('feed.html', wg=wg, posts=posts)
+    return redirect(mobile_app_url('/wg'))
 
 
 @app.route('/feed/post', methods=['POST'])
@@ -737,14 +644,6 @@ def delete_feed_post(pid):
 @login_required
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], secure_filename(filename))
-
-
-@app.route('/sw.js')
-def service_worker():
-    response = send_from_directory(app.static_folder, 'sw.js')
-    response.headers['Cache-Control'] = 'no-cache'
-    response.headers['Service-Worker-Allowed'] = '/'
-    return response
 
 
 # ──────────────────────────────────────────────

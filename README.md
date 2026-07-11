@@ -1,38 +1,46 @@
-# 🏠 WG Manager
+# Zofri Mobile App
 
-Ein modernes Dashboard zur Verwaltung deines Wohngemeinschafts-Alltags. Behalte den Überblick über Putzpläne, Einkäufe und Finanzen – alles an einem Ort.
+Mobile-first WG app built with Expo, React Native and a Flask JSON API.
 
-![WG Manager Dashboard](https://raw.githubusercontent.com/SAAD-BELBACHA/wg_app/main/static/uploads/3ce5fd0801364de7b015946a4be6b0af.png)
+## Structure
 
-## ✨ Features
+- `mobile/` - Expo app
+- `app.py` - API backend for auth, WG data, tasks, shopping, expenses, OCR and modules
+- `render.yaml` - Render services for API backend and mobile static web app
 
-- **👤 Authentifizierung**: Sicherer Login für alle Mitbewohner.
-- **🧹 Putzplan**: Aufgaben erstellen, zuweisen und automatisch rotieren lassen.
-- **🛒 Einkaufsliste**: Gemeinsame Liste zum Hinzufügen und Abhaken von Artikeln.
-- **💶 Finanzen**: Ausgaben eintragen und Schulden automatisch berechnen lassen.
-- **📍 Pinnwand**: Fotos und Sprachnachrichten mit der WG teilen.
+Old Flask website templates and static website assets were removed. The backend remains API-only for the mobile app.
 
-## 🚀 Schnelleinstieg
+## Local Run
 
-### 1. Lokal ausführen
-Um die App auf deinem eigenen Computer zu starten, schau in die [Startanleitung (GETTING_STARTED.md)](./GETTING_STARTED.md).
+Backend:
 
-### 2. Mit Docker starten
-Wenn du Docker installiert hast, kannst du die App mit einem Befehl starten:
 ```bash
-docker-compose up --build
+python3 app.py
 ```
 
-## 🌍 Veröffentlichung (Deployment)
-Du möchtest die Seite im Internet veröffentlichen? Eine Schritt-für-Schritt-Anleitung findest du im [Deployment-Tutorial (DEPLOY_TUTORIAL.md)](./DEPLOY_TUTORIAL.md).
+Mobile app:
 
----
+```bash
+cd mobile
+npm install
+npm run web
+```
 
-## 🛠️ Technologie-Stack
-- **Backend**: Python + Flask
-- **Datenbank**: SQLite (SQLAlchemy)
-- **Frontend**: Bootstrap 5 + Custom CSS
-- **Container**: Docker + Gunicorn
+## Deploy
 
----
-*Entwickelt mit ❤️ für eine stressfreie WG-Zeit.*
+Render creates two services:
+
+- `wg-manager` - API backend
+- `zofri-app` - mobile web app
+
+The mobile app must be built with:
+
+```bash
+EXPO_PUBLIC_API_URL=https://wg-manager-r5ni.onrender.com/api/v1 npm run export:web
+```
+
+## iPhone
+
+Open the deployed `zofri-app` URL in Safari, then use:
+
+Share -> Add to Home Screen.
