@@ -26,8 +26,23 @@ from email.message import EmailMessage
 # ──────────────────────────────────────────────
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'wg-super-secret-2024')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///wg_app.db')
+
+
+def _normalize_db_url(url):
+    # Managed Postgres providers (Render, Heroku) hand out a "postgres://" URL,
+    # but SQLAlchemy only accepts the "postgresql://" scheme. Also prefer the
+    # psycopg2 driver explicitly so the intent is clear.
+    if url.startswith('postgres://'):
+        url = 'postgresql://' + url[len('postgres://'):]
+    if url.startswith('postgresql://'):
+        url = 'postgresql+psycopg2://' + url[len('postgresql://'):]
+    return url
+
+
+app.config['SQLALCHEMY_DATABASE_URI'] = _normalize_db_url(os.environ.get('DATABASE_URL', 'sqlite:///wg_app.db'))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Managed Postgres connections drop idle sockets; pre-ping avoids stale-connection errors.
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}
 app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', os.path.join(os.path.dirname(__file__), 'static', 'uploads'))
 app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024  # 32 MB
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'wg-jwt-secret-mobile-dev-key-2024-change-me')
