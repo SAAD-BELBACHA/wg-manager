@@ -11,11 +11,14 @@ export type Household = {
   invite_code: string;
 };
 
+export type Recurrence = 'none' | 'daily' | 'weekly' | 'biweekly' | 'monthly';
+
 export type Task = {
   id: number;
   title: string;
   description: string;
   completed: boolean;
+  recurrence: Recurrence;
   due_date: string | null;
   assigned_to: User | null;
   created_at: string;

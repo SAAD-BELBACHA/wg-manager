@@ -157,6 +157,7 @@ class CleaningTask(db.Model):
     description  = db.Column(db.Text, default='')
     assigned_to  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     due_date     = db.Column(db.Date,    nullable=True)
+    recurrence   = db.Column(db.String(10), default='none')  # none|daily|weekly|biweekly|monthly
     completed    = db.Column(db.Boolean, default=False)
     completed_at = db.Column(db.DateTime, nullable=True)
     created_at   = db.Column(db.DateTime, default=datetime.utcnow)
@@ -442,10 +443,35 @@ def user_to_dict(u):
 def wg_to_dict(wg):
     return {'id': wg.id, 'name': wg.name, 'invite_code': wg.invite_code}
 
+RECURRENCE_DAYS = {'daily': 1, 'weekly': 7, 'biweekly': 14, 'monthly': 30}
+VALID_RECURRENCE = {'none', 'daily', 'weekly', 'biweekly', 'monthly'}
+
+
+def advance_due_date(due_date, recurrence):
+    step = RECURRENCE_DAYS.get(recurrence)
+    if not step:
+        return None
+    base = due_date or datetime.utcnow().date()
+    return base + timedelta(days=step)
+
+
+def next_assignee(wg, current_assignee_id):
+    # Round-robin to the next member after the current assignee, so a recurring
+    # chore rotates fairly and predictably instead of landing on the same person.
+    members = wg.get_members()
+    if not members:
+        return None
+    ids = [m.id for m in members]
+    if current_assignee_id in ids:
+        return ids[(ids.index(current_assignee_id) + 1) % len(ids)]
+    return ids[0]
+
+
 def task_to_dict(t):
     return {
         'id': t.id, 'title': t.title, 'description': t.description,
         'completed': t.completed,
+        'recurrence': t.recurrence or 'none',
         'due_date': t.due_date.isoformat() if t.due_date else None,
         'assigned_to': user_to_dict(t.assigned_user) if t.assigned_user else None,
         'created_at': t.created_at.isoformat(),
@@ -873,15 +899,22 @@ def api_add_task():
     title       = data.get('title', '').strip()
     description = data.get('description', '').strip()
     assigned_to = data.get('assigned_to')
+    recurrence  = data.get('recurrence', 'none')
     due_str     = data.get('due_date', '')
     if not title:
         return jsonify({'error': 'Titel erforderlich.'}), 400
+    if recurrence not in VALID_RECURRENCE:
+        recurrence = 'none'
     due_date = None
     if due_str:
         try: due_date = datetime.strptime(due_str, '%Y-%m-%d').date()
         except: pass
+    # A recurring chore needs a due date to anchor its schedule; default to today.
+    if recurrence != 'none' and not due_date:
+        due_date = datetime.utcnow().date()
     task = CleaningTask(wg_id=wg.id, title=title, description=description,
-                        assigned_to=assigned_to or None, due_date=due_date)
+                        assigned_to=assigned_to or None, due_date=due_date,
+                        recurrence=recurrence)
     db.session.add(task)
     db.session.commit()
     return jsonify({'task': task_to_dict(task)}), 201
@@ -898,8 +931,28 @@ def api_toggle_task(tid):
         return jsonify({'error': 'Nicht gefunden.'}), 404
     task.completed    = not task.completed
     task.completed_at = datetime.utcnow() if task.completed else None
+
+    spawned = None
+    # Completing a recurring chore spawns the next occurrence: due date advanced
+    # by the interval, assigned to the next roommate in rotation.
+    if task.completed and task.recurrence and task.recurrence != 'none':
+        already_spawned = CleaningTask.query.filter_by(
+            wg_id=wg.id, title=task.title, recurrence=task.recurrence, completed=False
+        ).first()
+        if not already_spawned:
+            spawned = CleaningTask(
+                wg_id=wg.id, title=task.title, description=task.description,
+                recurrence=task.recurrence,
+                due_date=advance_due_date(task.due_date, task.recurrence),
+                assigned_to=next_assignee(wg, task.assigned_to)
+            )
+            db.session.add(spawned)
+
     db.session.commit()
-    return jsonify({'task': task_to_dict(task)})
+    result = {'task': task_to_dict(task)}
+    if spawned is not None:
+        result['spawned_task'] = task_to_dict(spawned)
+    return jsonify(result)
 
 
 @api.route('/tasks/<int:tid>', methods=['DELETE'])
@@ -1493,9 +1546,25 @@ app.register_blueprint(api, url_prefix='/api')
 app.register_blueprint(api, url_prefix='/api/v1', name='api_v1')
 
 
+def ensure_schema():
+    # Lightweight, idempotent column adds for existing databases (no Alembic).
+    # db.create_all() only creates missing tables, never new columns.
+    from sqlalchemy import inspect, text
+    inspector = inspect(db.engine)
+    if 'cleaning_tasks' not in inspector.get_table_names():
+        return
+    columns = {c['name'] for c in inspector.get_columns('cleaning_tasks')}
+    if 'recurrence' not in columns:
+        with db.engine.begin() as conn:
+            conn.execute(text(
+                "ALTER TABLE cleaning_tasks ADD COLUMN recurrence VARCHAR(10) DEFAULT 'none'"
+            ))
+
+
 def initialize_database():
     with app.app_context():
         db.create_all()
+        ensure_schema()
 
 
 initialize_database()
