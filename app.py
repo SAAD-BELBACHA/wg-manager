@@ -178,12 +178,14 @@ class ShoppingItem(db.Model):
 
 class Expense(db.Model):
     __tablename__ = 'expenses'
-    id         = db.Column(db.Integer, primary_key=True)
-    wg_id      = db.Column(db.Integer, db.ForeignKey('wgs.id'),   nullable=False)
-    title      = db.Column(db.String(100), nullable=False)
-    amount     = db.Column(db.Float,       nullable=False)
-    paid_by    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    id           = db.Column(db.Integer, primary_key=True)
+    wg_id        = db.Column(db.Integer, db.ForeignKey('wgs.id'),   nullable=False)
+    title        = db.Column(db.String(100), nullable=False)
+    amount       = db.Column(db.Float,       nullable=False)
+    paid_by      = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    category     = db.Column(db.String(30), default='other')
+    split_method = db.Column(db.String(12), default='equal')  # equal|exact|percent|shares
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow)
     paid_by_user = db.relationship('User', foreign_keys=[paid_by])
     splits = db.relationship('ExpenseSplit', backref='expense', lazy=True,
                              cascade='all, delete-orphan')
@@ -361,6 +363,65 @@ def gen_invite_code():
             return code
 
 
+EXPENSE_CATEGORIES = [
+    'rent', 'electricity', 'internet', 'groceries', 'household',
+    'repair', 'leisure', 'deposit', 'other'
+]
+SPLIT_METHODS = {'equal', 'exact', 'percent', 'shares'}
+
+
+def compute_splits(total_cents, method, participants):
+    """Split total_cents exactly among participants using integer-cents math
+    so the parts always sum to the total (no floating-point drift).
+
+    participants: list of {'user_id': int, 'value': float}
+      - equal:   value ignored, split evenly
+      - exact:   value = that person's amount (in currency units)
+      - percent: value = that person's percentage (must sum to 100)
+      - shares:  value = that person's weight (e.g. 2 : 1 : 1)
+
+    Returns {user_id: cents} or raises ValueError on invalid input.
+    """
+    if not participants:
+        raise ValueError('Mindestens eine Person muss beteiligt sein.')
+    ids = [p['user_id'] for p in participants]
+    if len(set(ids)) != len(ids):
+        raise ValueError('Doppelte Teilnehmer.')
+
+    if method == 'exact':
+        cents = {}
+        for p in participants:
+            c = int(round(float(p['value']) * 100))
+            if c < 0:
+                raise ValueError('Beträge dürfen nicht negativ sein.')
+            cents[p['user_id']] = c
+        if sum(cents.values()) != total_cents:
+            raise ValueError('Die Summe der Beträge muss dem Gesamtbetrag entsprechen.')
+        return cents
+
+    if method == 'percent':
+        weights = [max(0.0, float(p['value'])) for p in participants]
+        if abs(sum(weights) - 100.0) > 0.01:
+            raise ValueError('Die Prozentangaben müssen zusammen 100 % ergeben.')
+    elif method == 'shares':
+        weights = [max(0.0, float(p['value'])) for p in participants]
+        if sum(weights) <= 0:
+            raise ValueError('Mindestens ein Anteil muss größer als 0 sein.')
+    else:  # equal
+        weights = [1.0] * len(participants)
+
+    total_weight = sum(weights)
+    # Largest-remainder method: floor each share, then hand out leftover cents
+    # to the participants with the biggest fractional parts (stable, exact).
+    raw = [total_cents * w / total_weight for w in weights]
+    floors = [int(x) for x in raw]
+    remainder = total_cents - sum(floors)
+    order = sorted(range(len(participants)), key=lambda i: raw[i] - floors[i], reverse=True)
+    for k in range(remainder):
+        floors[order[k]] += 1
+    return {participants[i]['user_id']: floors[i] for i in range(len(participants))}
+
+
 def calculate_debts(wg):
     """Return list of {from_user, to_user, amount} dicts."""
     members = wg.get_members()
@@ -488,6 +549,12 @@ def expense_to_dict(e):
     return {
         'id': e.id, 'title': e.title, 'amount': e.amount,
         'paid_by': user_to_dict(e.paid_by_user),
+        'category': e.category or 'other',
+        'split_method': e.split_method or 'equal',
+        'participants': [
+            {'user': user_to_dict(s.user), 'amount': s.amount}
+            for s in e.splits if s.user is not None
+        ],
         'created_at': e.created_at.isoformat(),
     }
 
@@ -1098,6 +1165,8 @@ def api_add_expense():
     title      = data.get('title', '').strip()
     amount_str = str(data.get('amount', '')).replace(',', '.')
     paid_by_id = data.get('paid_by', uid)
+    category   = data.get('category', 'other')
+    method     = data.get('split_method', 'equal')
     if not title or not amount_str:
         return jsonify({'error': 'Alle Felder erforderlich.'}), 400
     try:
@@ -1105,19 +1174,36 @@ def api_add_expense():
         if amount <= 0: raise ValueError
     except ValueError:
         return jsonify({'error': 'Ungültiger Betrag.'}), 400
-    members = wg.get_members()
-    expense = Expense(wg_id=wg.id, title=title, amount=amount, paid_by=paid_by_id)
+    if category not in EXPENSE_CATEGORIES:
+        category = 'other'
+    if method not in SPLIT_METHODS:
+        method = 'equal'
+
+    member_ids = {m.id for m in wg.get_members()}
+    if paid_by_id not in member_ids:
+        paid_by_id = int(uid)
+
+    # Participants: explicit list, or everyone for a plain equal split.
+    participants = data.get('participants')
+    if not participants:
+        participants = [{'user_id': mid, 'value': 0} for mid in member_ids]
+    # Guard: every participant must be a member of this WG.
+    for p in participants:
+        if p.get('user_id') not in member_ids:
+            return jsonify({'error': 'Unbekannter Teilnehmer.'}), 400
+
+    total_cents = int(round(amount * 100))
+    try:
+        cents = compute_splits(total_cents, method, participants)
+    except (ValueError, KeyError, TypeError) as exc:
+        return jsonify({'error': str(exc) or 'Ungültige Aufteilung.'}), 400
+
+    expense = Expense(wg_id=wg.id, title=title, amount=amount, paid_by=paid_by_id,
+                      category=category, split_method=method)
     db.session.add(expense)
     db.session.flush()
-    n = len(members)
-    running_total = 0.0
-    for i, m in enumerate(members):
-        if i < n - 1:
-            split_amt = round(amount / n, 2)
-            running_total += split_amt
-        else:
-            split_amt = round(amount - running_total, 2)
-        db.session.add(ExpenseSplit(expense_id=expense.id, user_id=m.id, amount=split_amt))
+    for user_id, c in cents.items():
+        db.session.add(ExpenseSplit(expense_id=expense.id, user_id=user_id, amount=c / 100.0))
     db.session.commit()
     return jsonify({'expense': expense_to_dict(expense)}), 201
 
@@ -1559,6 +1645,14 @@ def ensure_schema():
             conn.execute(text(
                 "ALTER TABLE cleaning_tasks ADD COLUMN recurrence VARCHAR(10) DEFAULT 'none'"
             ))
+
+    if 'expenses' in inspector.get_table_names():
+        ecols = {c['name'] for c in inspector.get_columns('expenses')}
+        with db.engine.begin() as conn:
+            if 'category' not in ecols:
+                conn.execute(text("ALTER TABLE expenses ADD COLUMN category VARCHAR(30) DEFAULT 'other'"))
+            if 'split_method' not in ecols:
+                conn.execute(text("ALTER TABLE expenses ADD COLUMN split_method VARCHAR(12) DEFAULT 'equal'"))
 
 
 def initialize_database():

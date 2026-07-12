@@ -39,11 +39,25 @@ export type ShoppingItem = {
   added_by: User;
 };
 
+export type ExpenseCategory =
+  | 'rent' | 'electricity' | 'internet' | 'groceries' | 'household'
+  | 'repair' | 'leisure' | 'deposit' | 'other';
+
+export type SplitMethod = 'equal' | 'exact' | 'percent' | 'shares';
+
+export type ExpenseParticipant = {
+  user: User;
+  amount: number;
+};
+
 export type Expense = {
   id: number;
   title: string;
   amount: number;
   paid_by: User;
+  category: ExpenseCategory;
+  split_method: SplitMethod;
+  participants: ExpenseParticipant[];
   created_at: string;
 };
 
