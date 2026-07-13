@@ -9,6 +9,7 @@ import { AppText } from '@/components/AppText';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
+import { HeroCard } from '@/components/HeroCard';
 import { ListRow } from '@/components/ListRow';
 import { MemberAvatar } from '@/components/MemberAvatar';
 import { MetricCard } from '@/components/MetricCard';
@@ -144,9 +145,28 @@ export default function ExpensesScreen() {
     }
   }
 
+  const myBalance = finance?.my_balance ?? 0;
+  const balanceState = myBalance > 0.005 ? 'positive' : myBalance < -0.005 ? 'negative' : 'settled';
+
   return (
     <Screen>
       <AppHeader title={t('expenses.title')} subtitle={t('expenses.subtitle')} eyebrow={t('expenses.eyebrow')} icon="wallet" />
+
+      {finance ? (
+        <HeroCard accent={balanceState === 'negative' ? 'coral' : balanceState === 'positive' ? 'lime' : 'aqua'}>
+          <AppText variant="small" style={styles.heroLabel}>
+            {balanceState === 'positive' ? t('expenses.youGetBack') : balanceState === 'negative' ? t('expenses.youOwe') : t('expenses.settled')}
+          </AppText>
+          {balanceState === 'settled' ? (
+            <>
+              <AppText variant="title" style={styles.heroValue}>0,00 €</AppText>
+              <AppText style={styles.heroBody}>{t('expenses.settledBody')}</AppText>
+            </>
+          ) : (
+            <AppText variant="title" style={styles.heroValue}>{Math.abs(myBalance).toFixed(2)} €</AppText>
+          )}
+        </HeroCard>
+      ) : null}
 
       <Card tone="soft">
         <View style={styles.form}>
@@ -251,15 +271,18 @@ export default function ExpensesScreen() {
           </View>
 
           <Card>
-            <AppText variant="h2">{t('expenses.openDebts')}</AppText>
-            {finance.debts.length ? finance.debts.map(debt => (
+            <View style={styles.settleHeader}>
+              <AppText variant="h2">{t('expenses.settleUp')}</AppText>
+              {finance.settlements.length ? <AppText variant="small" style={styles.settleHint}>{t('expenses.settleHint')}</AppText> : null}
+            </View>
+            {finance.settlements.length ? finance.settlements.map(s => (
               <ListRow
-                key={`${debt.from_user.id}-${debt.to_user.id}-${debt.amount}`}
-                title={`${debt.amount.toFixed(2)} €`}
-                subtitle={t('expenses.owes', { from: debt.from_user.username, to: debt.to_user.username })}
-                icon="arrow-right-arrow-left"
+                key={`${s.from_user.id}-${s.to_user.id}-${s.amount}`}
+                title={t('expenses.pays', { from: s.from_user.username, to: s.to_user.username })}
+                subtitle={`${s.amount.toFixed(2)} €`}
+                icon="arrow-right-long"
               />
-            )) : <EmptyState title={t('expenses.emptyDebtsTitle')} body={t('expenses.emptyDebtsBody')} icon="scale-balanced" tone="lime" />}
+            )) : <EmptyState title={t('expenses.allSettledTitle')} body={t('expenses.allSettledBody')} icon="scale-balanced" tone="lime" />}
           </Card>
 
           <Card>
@@ -341,6 +364,11 @@ function makeStyles(colors: ReturnType<typeof useThemeColors>) {
     sumHint: { fontWeight: '800', marginTop: 4 },
     sumOk: { color: colors.success },
     sumBad: { color: colors.warning },
-    sharedWith: { color: colors.textMuted, fontWeight: '600', marginTop: 2 }
+    sharedWith: { color: colors.textMuted, fontWeight: '600', marginTop: 2 },
+    heroLabel: { color: 'rgba(255,255,255,0.85)', fontWeight: '900' },
+    heroValue: { color: '#FFFFFF' },
+    heroBody: { color: 'rgba(255,255,255,0.9)', fontWeight: '600' },
+    settleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+    settleHint: { color: colors.textMuted, fontWeight: '600', flexShrink: 1, textAlign: 'right' }
   });
 }

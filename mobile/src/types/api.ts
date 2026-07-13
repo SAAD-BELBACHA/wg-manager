@@ -88,9 +88,23 @@ export type ShoppingResponse = {
   done: ShoppingItem[];
 };
 
+export type Settlement = {
+  from_user: User;
+  to_user: User;
+  amount: number;
+};
+
+export type MemberBalance = {
+  user: User;
+  amount: number;
+};
+
 export type FinanceResponse = {
   expenses: Expense[];
   debts: Debt[];
+  settlements: Settlement[];
+  balances: MemberBalance[];
+  my_balance: number;
   total: number;
   members: User[];
 };

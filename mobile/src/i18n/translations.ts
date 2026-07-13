@@ -222,7 +222,16 @@ const de = {
     catRepair: 'Reparatur',
     catLeisure: 'Freizeit',
     catDeposit: 'Kaution',
-    catOther: 'Sonstiges'
+    catOther: 'Sonstiges',
+    youGetBack: 'Du bekommst zurück',
+    youOwe: 'Du schuldest',
+    settled: 'Du bist ausgeglichen',
+    settledBody: 'Keine offenen Beträge in deiner WG.',
+    settleUp: 'Ausgleich',
+    settleHint: 'Weniger Überweisungen, alles glatt.',
+    pays: '{{from}} zahlt {{to}}',
+    allSettledTitle: 'Alles ausgeglichen',
+    allSettledBody: 'Keine offenen Zahlungen gerade.'
   },
   wg: {
     eyebrow: 'Home',
@@ -660,7 +669,16 @@ const en: typeof de = {
     catRepair: 'Repair',
     catLeisure: 'Leisure',
     catDeposit: 'Deposit',
-    catOther: 'Other'
+    catOther: 'Other',
+    youGetBack: 'You get back',
+    youOwe: 'You owe',
+    settled: "You're all settled",
+    settledBody: 'No open amounts in your flatshare.',
+    settleUp: 'Settle up',
+    settleHint: 'Fewer transfers, all square.',
+    pays: '{{from}} pays {{to}}',
+    allSettledTitle: 'All settled',
+    allSettledBody: 'No open payments right now.'
   },
   wg: {
     eyebrow: 'Home',

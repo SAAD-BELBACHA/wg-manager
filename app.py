@@ -460,6 +460,47 @@ def calculate_debts(wg):
     return result
 
 
+def calculate_net_balances(wg):
+    """Net position per member in integer cents: paid minus owed.
+    Positive = the WG owes them money; negative = they owe the WG."""
+    balances = {m.id: 0 for m in wg.get_members()}
+    for expense in wg.expenses:
+        total_cents = int(round(expense.amount * 100))
+        if expense.paid_by in balances:
+            balances[expense.paid_by] += total_cents
+        for split in expense.splits:
+            if split.user_id in balances:
+                balances[split.user_id] -= int(round(split.amount * 100))
+    return balances
+
+
+def simplify_settlements(balances):
+    """Greedy debt simplification: match the biggest creditor with the biggest
+    debtor repeatedly. Produces at most n-1 transfers — far fewer than the raw
+    pairwise debts — while settling everyone exactly.
+
+    Returns list of {from_id, to_id, cents}.
+    """
+    creditors = sorted(([uid, c] for uid, c in balances.items() if c > 0),
+                       key=lambda x: x[1], reverse=True)
+    debtors = sorted(([uid, -c] for uid, c in balances.items() if c < 0),
+                     key=lambda x: x[1], reverse=True)
+    settlements = []
+    i = j = 0
+    while i < len(debtors) and j < len(creditors):
+        d, c = debtors[i], creditors[j]
+        pay = min(d[1], c[1])
+        if pay > 0:
+            settlements.append({'from_id': d[0], 'to_id': c[0], 'cents': pay})
+        d[1] -= pay
+        c[1] -= pay
+        if d[1] == 0:
+            i += 1
+        if c[1] == 0:
+            j += 1
+    return settlements
+
+
 def _safe_next(next_url):
     """Return next_url only if it's a safe local path."""
     if not next_url:
@@ -1145,9 +1186,26 @@ def api_finance():
         return jsonify({'error': 'Keine WG.'}), 404
     expenses = Expense.query.filter_by(wg_id=wg.id).order_by(Expense.created_at.desc()).all()
     debts    = calculate_debts(wg)
+    balances = calculate_net_balances(wg)
+    member_map = {m.id: m for m in wg.get_members()}
+    settlements = [
+        {
+            'from_user': user_to_dict(member_map[s['from_id']]),
+            'to_user':   user_to_dict(member_map[s['to_id']]),
+            'amount':    round(s['cents'] / 100.0, 2),
+        }
+        for s in simplify_settlements(balances)
+        if s['from_id'] in member_map and s['to_id'] in member_map
+    ]
     return jsonify({
         'expenses': [expense_to_dict(e) for e in expenses],
         'debts':    [debt_to_dict(d) for d in debts],
+        'settlements': settlements,
+        'balances': [
+            {'user': user_to_dict(member_map[mid]), 'amount': round(cents / 100.0, 2)}
+            for mid, cents in balances.items() if mid in member_map
+        ],
+        'my_balance': round(balances.get(int(uid), 0) / 100.0, 2),
         'total':    sum(e.amount for e in expenses),
         'members':  [user_to_dict(m) for m in wg.get_members()],
     })
