@@ -135,6 +135,20 @@ export default function ExpensesScreen() {
     }
   }
 
+  async function markSettlementPaid(fromId: number, toId: number, value: number) {
+    setError('');
+    try {
+      await apiRequest('/finance/settle', {
+        method: 'POST',
+        token,
+        body: { from_user: fromId, to_user: toId, amount: value.toFixed(2) }
+      });
+      loadFinance();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('expenses.settleFailed'));
+    }
+  }
+
   async function deleteExpense(expense: Expense) {
     setError('');
     try {
@@ -281,8 +295,22 @@ export default function ExpensesScreen() {
                 title={t('expenses.pays', { from: s.from_user.username, to: s.to_user.username })}
                 subtitle={`${s.amount.toFixed(2)} €`}
                 icon="arrow-right-long"
+                actionLabel={t('expenses.markPaid')}
+                onAction={() => markSettlementPaid(s.from_user.id, s.to_user.id, s.amount)}
               />
             )) : <EmptyState title={t('expenses.allSettledTitle')} body={t('expenses.allSettledBody')} icon="scale-balanced" tone="lime" />}
+          </Card>
+
+          <Card>
+            <AppText variant="h2">{t('expenses.historyTitle')}</AppText>
+            {finance.settlement_history.length ? finance.settlement_history.map(p => (
+              <ListRow
+                key={p.id}
+                title={t('expenses.historyLine', { from: p.from_user.username, to: p.to_user.username })}
+                subtitle={`${p.amount.toFixed(2)} € · ${new Date(p.created_at).toLocaleDateString()}`}
+                icon="check"
+              />
+            )) : <EmptyState title={t('expenses.emptyHistoryTitle')} body={t('expenses.emptyHistoryBody')} icon="clock-rotate-left" tone="aqua" />}
           </Card>
 
           <Card>

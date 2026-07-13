@@ -99,12 +99,21 @@ export type MemberBalance = {
   amount: number;
 };
 
+export type SettlementPayment = {
+  id: number;
+  from_user: User;
+  to_user: User;
+  amount: number;
+  created_at: string;
+};
+
 export type FinanceResponse = {
   expenses: Expense[];
   debts: Debt[];
   settlements: Settlement[];
   balances: MemberBalance[];
   my_balance: number;
+  settlement_history: SettlementPayment[];
   total: number;
   members: User[];
 };

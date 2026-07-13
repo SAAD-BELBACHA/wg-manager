@@ -212,6 +212,18 @@ class ExpenseSplit(db.Model):
     user = db.relationship('User', foreign_keys=[user_id])
 
 
+class SettlementPayment(db.Model):
+    __tablename__ = 'settlement_payments'
+    id           = db.Column(db.Integer, primary_key=True)
+    wg_id        = db.Column(db.Integer, db.ForeignKey('wgs.id'),   nullable=False)
+    from_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # who paid (debtor)
+    to_user_id   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # who received (creditor)
+    amount       = db.Column(db.Float, nullable=False)
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    from_user = db.relationship('User', foreign_keys=[from_user_id])
+    to_user   = db.relationship('User', foreign_keys=[to_user_id])
+
+
 class RevokedToken(db.Model):
     __tablename__ = 'revoked_tokens'
     id         = db.Column(db.Integer, primary_key=True)
@@ -428,22 +440,30 @@ def calculate_debts(wg):
     member_map = {m.id: m for m in members}
     debts = {}  # (from_id, to_id) -> amount
 
+    def add_debt(ower_id, owed_id, amount):
+        key     = (ower_id, owed_id)
+        rev_key = (owed_id, ower_id)
+        if key in debts:
+            debts[key] += amount
+        elif rev_key in debts:
+            debts[rev_key] -= amount
+            if debts[rev_key] < 0:
+                debts[key] = -debts[rev_key]
+                del debts[rev_key]
+        else:
+            debts[key] = amount
+
     for expense in wg.expenses:
         paid_id = expense.paid_by
         for split in expense.splits:
             if split.user_id == paid_id:
                 continue
-            key     = (split.user_id, paid_id)
-            rev_key = (paid_id, split.user_id)
-            if key in debts:
-                debts[key] += split.amount
-            elif rev_key in debts:
-                debts[rev_key] -= split.amount
-                if debts[rev_key] < 0:
-                    debts[key] = -debts[rev_key]
-                    del debts[rev_key]
-            else:
-                debts[key] = split.amount
+            add_debt(split.user_id, paid_id, split.amount)
+
+    # A direct repayment from A to B works like B now "owing" A that amount,
+    # which nets against A's existing debt to B.
+    for payment in SettlementPayment.query.filter_by(wg_id=wg.id).all():
+        add_debt(payment.to_user_id, payment.from_user_id, payment.amount)
 
     result = []
     for (fid, tid), amt in debts.items():
@@ -471,6 +491,14 @@ def calculate_net_balances(wg):
         for split in expense.splits:
             if split.user_id in balances:
                 balances[split.user_id] -= int(round(split.amount * 100))
+    # Repayments shift the balance: the payer clears debt, the recipient
+    # has been made whole by that amount.
+    for payment in SettlementPayment.query.filter_by(wg_id=wg.id).all():
+        cents = int(round(payment.amount * 100))
+        if payment.from_user_id in balances:
+            balances[payment.from_user_id] += cents
+        if payment.to_user_id in balances:
+            balances[payment.to_user_id] -= cents
     return balances
 
 
@@ -611,6 +639,15 @@ def debt_to_dict(d):
         'from_user': user_to_dict(d['from_user']),
         'to_user':   user_to_dict(d['to_user']),
         'amount':    d['amount'],
+    }
+
+def settlement_payment_to_dict(p):
+    return {
+        'id': p.id,
+        'from_user': user_to_dict(p.from_user),
+        'to_user':   user_to_dict(p.to_user),
+        'amount':    p.amount,
+        'created_at': p.created_at.isoformat(),
     }
 
 
@@ -1206,9 +1243,41 @@ def api_finance():
             for mid, cents in balances.items() if mid in member_map
         ],
         'my_balance': round(balances.get(int(uid), 0) / 100.0, 2),
+        'settlement_history': [
+            settlement_payment_to_dict(p) for p in
+            SettlementPayment.query.filter_by(wg_id=wg.id)
+                .order_by(SettlementPayment.created_at.desc()).limit(20).all()
+        ],
         'total':    sum(e.amount for e in expenses),
         'members':  [user_to_dict(m) for m in wg.get_members()],
     })
+
+
+@api.route('/finance/settle', methods=['POST'])
+@jwt_required()
+def api_settle():
+    uid  = int(get_jwt_identity())
+    user = db.session.get(User, uid)
+    wg   = user.get_wg() if user else None
+    if not wg:
+        return jsonify({'error': 'Keine WG.'}), 404
+    data = request.get_json() or {}
+    from_id = data.get('from_user', uid)
+    to_id   = data.get('to_user')
+    amount_str = str(data.get('amount', '')).replace(',', '.')
+    try:
+        amount = float(amount_str)
+        if amount <= 0: raise ValueError
+    except ValueError:
+        return jsonify({'error': 'Ungültiger Betrag.'}), 400
+    member_ids = {m.id for m in wg.get_members()}
+    if from_id not in member_ids or to_id not in member_ids or from_id == to_id:
+        return jsonify({'error': 'Ungültige Teilnehmer.'}), 400
+    payment = SettlementPayment(wg_id=wg.id, from_user_id=from_id,
+                                to_user_id=to_id, amount=round(amount, 2))
+    db.session.add(payment)
+    db.session.commit()
+    return jsonify({'payment': settlement_payment_to_dict(payment)}), 201
 
 
 @api.route('/finance', methods=['POST'])

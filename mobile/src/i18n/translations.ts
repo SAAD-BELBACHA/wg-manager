@@ -231,7 +231,13 @@ const de = {
     settleHint: 'Weniger Überweisungen, alles glatt.',
     pays: '{{from}} zahlt {{to}}',
     allSettledTitle: 'Alles ausgeglichen',
-    allSettledBody: 'Keine offenen Zahlungen gerade.'
+    allSettledBody: 'Keine offenen Zahlungen gerade.',
+    markPaid: 'Bezahlt',
+    settleFailed: 'Zahlung konnte nicht gespeichert werden.',
+    historyTitle: 'Ausgleichs-Verlauf',
+    historyLine: '{{from}} → {{to}}',
+    emptyHistoryTitle: 'Noch keine Rückzahlungen',
+    emptyHistoryBody: 'Bestätigte Zahlungen erscheinen hier.'
   },
   wg: {
     eyebrow: 'Home',
@@ -678,7 +684,13 @@ const en: typeof de = {
     settleHint: 'Fewer transfers, all square.',
     pays: '{{from}} pays {{to}}',
     allSettledTitle: 'All settled',
-    allSettledBody: 'No open payments right now.'
+    allSettledBody: 'No open payments right now.',
+    markPaid: 'Paid',
+    settleFailed: 'Could not save the payment.',
+    historyTitle: 'Settlement history',
+    historyLine: '{{from}} → {{to}}',
+    emptyHistoryTitle: 'No repayments yet',
+    emptyHistoryBody: 'Confirmed payments appear here.'
   },
   wg: {
     eyebrow: 'Home',
