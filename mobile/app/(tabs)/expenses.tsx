@@ -16,7 +16,7 @@ import { MetricCard } from '@/components/MetricCard';
 import { Screen } from '@/components/Screen';
 import { TextField } from '@/components/TextField';
 import { useTranslation } from '@/i18n/I18nContext';
-import { Expense, ExpenseCategory, FinanceResponse, SplitMethod, User } from '@/types/api';
+import { Expense, ExpenseCategory, FinanceResponse, RecurringInterval, SplitMethod, User } from '@/types/api';
 import { radii, spacing } from '@/theme/tokens';
 import { useThemeColors } from '@/theme/ThemeContext';
 
@@ -45,6 +45,16 @@ const SPLIT_METHODS: { value: SplitMethod; labelKey: string }[] = [
   { value: 'shares', labelKey: 'expenses.splitShares' }
 ];
 
+const INTERVALS: { value: RecurringInterval; labelKey: string }[] = [
+  { value: 'weekly', labelKey: 'expenses.intWeekly' },
+  { value: 'monthly', labelKey: 'expenses.intMonthly' },
+  { value: 'quarterly', labelKey: 'expenses.intQuarterly' },
+  { value: 'yearly', labelKey: 'expenses.intYearly' }
+];
+const INTERVAL_LABEL: Record<RecurringInterval, string> = Object.fromEntries(
+  INTERVALS.map(i => [i.value, i.labelKey])
+) as Record<RecurringInterval, string>;
+
 export default function ExpensesScreen() {
   const { token, user } = useAuth();
   const colors = useThemeColors();
@@ -62,6 +72,10 @@ export default function ExpensesScreen() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [recTitle, setRecTitle] = useState('');
+  const [recAmount, setRecAmount] = useState('');
+  const [recInterval, setRecInterval] = useState<RecurringInterval>('monthly');
+  const [recCategory, setRecCategory] = useState<ExpenseCategory>('rent');
 
   const members = finance?.members ?? [];
   const meId = user?.id ?? null;
@@ -132,6 +146,41 @@ export default function ExpensesScreen() {
       setError(err instanceof Error ? err.message : t('expenses.createFailed'));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function addRecurring() {
+    if (!recTitle.trim() || !(parseFloat(recAmount.replace(',', '.')) > 0)) return;
+    setError('');
+    try {
+      await apiRequest('/finance/recurring', {
+        method: 'POST',
+        token,
+        body: { title: recTitle.trim(), amount: recAmount.replace(',', '.'), category: recCategory, interval: recInterval }
+      });
+      setRecTitle('');
+      setRecAmount('');
+      loadFinance();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('expenses.recurringCreateFailed'));
+    }
+  }
+
+  async function toggleRecurring(id: number) {
+    try {
+      await apiRequest(`/finance/recurring/${id}/toggle`, { method: 'POST', token });
+      loadFinance();
+    } catch {
+      loadFinance();
+    }
+  }
+
+  async function deleteRecurring(id: number) {
+    try {
+      await apiRequest(`/finance/recurring/${id}`, { method: 'DELETE', token });
+      loadFinance();
+    } catch {
+      loadFinance();
     }
   }
 
@@ -314,6 +363,56 @@ export default function ExpensesScreen() {
           </Card>
 
           <Card>
+            <AppText variant="h2">{t('expenses.recurringTitle')}</AppText>
+            <AppText variant="small" style={styles.sharedWith}>{t('expenses.recurringHint')}</AppText>
+            {finance.recurring.length ? finance.recurring.map(r => (
+              <ListRow
+                key={r.id}
+                title={`${r.title} · ${r.amount.toFixed(2)} €`}
+                subtitle={`${t(INTERVAL_LABEL[r.interval])}${r.next_due ? ` · ${t('expenses.nextDue', { date: new Date(r.next_due).toLocaleDateString() })}` : ''} · ${t('expenses.tapToPause')}`}
+                icon="rotate"
+                muted={!r.active}
+                actionLabel={t('common.delete')}
+                onPress={() => toggleRecurring(r.id)}
+                onAction={() => deleteRecurring(r.id)}
+              >
+                <View style={{ marginTop: 4 }}>
+                  <AppText variant="tiny" style={r.active ? styles.sumOk : styles.sumBad}>
+                    {r.active ? t('expenses.activePill') : t('expenses.pausedPill')}
+                  </AppText>
+                </View>
+              </ListRow>
+            )) : <EmptyState title={t('expenses.emptyRecurringTitle')} body={t('expenses.emptyRecurringBody')} icon="rotate" tone="primary" />}
+
+            <View style={styles.form}>
+              <TextField label={t('expenses.expenseTitle')} value={recTitle} onChangeText={setRecTitle} placeholder="Miete" />
+              <TextField label={t('expenses.amount')} value={recAmount} onChangeText={setRecAmount} placeholder="900" keyboardType="decimal-pad" />
+              <Field label={t('expenses.intervalLabel')}>
+                <View style={styles.chipRow}>
+                  {INTERVALS.map(iv => (
+                    <Pressable key={iv.value} onPress={() => setRecInterval(iv.value)}
+                      style={[styles.chip, recInterval === iv.value && styles.chipActive]}>
+                      <AppText variant="small" style={[styles.chipText, recInterval === iv.value && styles.chipTextActive]}>{t(iv.labelKey)}</AppText>
+                    </Pressable>
+                  ))}
+                </View>
+              </Field>
+              <Field label={t('expenses.category')}>
+                <View style={styles.chipRow}>
+                  {CATEGORIES.map(cat => (
+                    <Pressable key={cat.value} onPress={() => setRecCategory(cat.value)}
+                      style={[styles.iconChip, recCategory === cat.value && styles.chipActive]}>
+                      <FontAwesome6 name={cat.icon as never} size={13} color={recCategory === cat.value ? colors.primary : colors.textMuted} />
+                      <AppText variant="small" style={[styles.chipText, recCategory === cat.value && styles.chipTextActive]}>{t(cat.labelKey)}</AppText>
+                    </Pressable>
+                  ))}
+                </View>
+              </Field>
+              <Button title={t('expenses.recurringAdd')} icon="rotate" variant="secondary" onPress={addRecurring} />
+            </View>
+          </Card>
+
+          <Card>
             <AppText variant="h2">{t('expenses.recent')}</AppText>
             {finance.expenses.length ? finance.expenses.map(expense => (
               <ListRow
@@ -325,7 +424,7 @@ export default function ExpensesScreen() {
                 onAction={() => deleteExpense(expense)}
               >
                 <AppText variant="tiny" style={styles.sharedWith}>
-                  {t(CATEGORY_LABEL[expense.category] || 'expenses.catOther')} · {t('expenses.sharedWith', { names: expense.participants.map(p => p.user.username).join(', ') })}
+                  {expense.is_recurring ? `↻ ${t('expenses.recurringBadge')} · ` : ''}{t(CATEGORY_LABEL[expense.category] || 'expenses.catOther')} · {t('expenses.sharedWith', { names: expense.participants.map(p => p.user.username).join(', ') })}
                 </AppText>
               </ListRow>
             )) : <EmptyState title={t('expenses.emptyExpensesTitle')} body={t('expenses.emptyExpensesBody')} icon="receipt" tone="aqua" />}

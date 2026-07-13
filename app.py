@@ -9,7 +9,8 @@ from flask_limiter.util import get_remote_address
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from urllib.parse import urlparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
+import calendar as _calendar
 import hashlib
 import logging
 import random
@@ -185,10 +186,26 @@ class Expense(db.Model):
     paid_by      = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     category     = db.Column(db.String(30), default='other')
     split_method = db.Column(db.String(12), default='equal')  # equal|exact|percent|shares
+    recurring_id = db.Column(db.Integer, nullable=True)  # RecurringExpense that spawned this
     created_at   = db.Column(db.DateTime, default=datetime.utcnow)
     paid_by_user = db.relationship('User', foreign_keys=[paid_by])
     splits = db.relationship('ExpenseSplit', backref='expense', lazy=True,
                              cascade='all, delete-orphan')
+
+
+class RecurringExpense(db.Model):
+    __tablename__ = 'recurring_expenses'
+    id         = db.Column(db.Integer, primary_key=True)
+    wg_id      = db.Column(db.Integer, db.ForeignKey('wgs.id'),   nullable=False)
+    title      = db.Column(db.String(100), nullable=False)
+    amount     = db.Column(db.Float, nullable=False)
+    category   = db.Column(db.String(30), default='other')
+    paid_by    = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    interval   = db.Column(db.String(10), default='monthly')  # weekly|monthly|quarterly|yearly
+    next_due   = db.Column(db.Date, nullable=False)
+    active     = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    paid_by_user = db.relationship('User', foreign_keys=[paid_by])
 
 
 class FeedPost(db.Model):
@@ -480,6 +497,54 @@ def calculate_debts(wg):
     return result
 
 
+RECURRING_INTERVALS = {'weekly', 'monthly', 'quarterly', 'yearly'}
+
+
+def advance_recurring_date(d, interval):
+    if interval == 'weekly':
+        return d + timedelta(days=7)
+    months = {'quarterly': 3, 'yearly': 12}.get(interval, 1)
+    m = d.month - 1 + months
+    year = d.year + m // 12
+    month = m % 12 + 1
+    day = min(d.day, _calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def materialize_recurring(wg):
+    """Create real expenses for every recurring definition that is due.
+    Runs lazily whenever finances are fetched — no scheduler needed. Each
+    instance is dated on its due date and split equally among the members
+    at that moment; next_due then advances by the interval (capped catch-up
+    so an long-idle WG can't spawn unbounded rows)."""
+    today = datetime.utcnow().date()
+    members = wg.get_members()
+    if not members:
+        return
+    defs = RecurringExpense.query.filter_by(wg_id=wg.id, active=True).all()
+    changed = False
+    for r in defs:
+        guard = 0
+        while r.next_due and r.next_due <= today and guard < 24:
+            total_cents = int(round(r.amount * 100))
+            cents = compute_splits(total_cents, 'equal',
+                                   [{'user_id': m.id, 'value': 0} for m in members])
+            expense = Expense(
+                wg_id=wg.id, title=r.title, amount=r.amount, paid_by=r.paid_by,
+                category=r.category, split_method='equal', recurring_id=r.id,
+                created_at=datetime.combine(r.next_due, datetime.min.time())
+            )
+            db.session.add(expense)
+            db.session.flush()
+            for user_id, c in cents.items():
+                db.session.add(ExpenseSplit(expense_id=expense.id, user_id=user_id, amount=c / 100.0))
+            r.next_due = advance_recurring_date(r.next_due, r.interval)
+            guard += 1
+            changed = True
+    if changed:
+        db.session.commit()
+
+
 def calculate_net_balances(wg):
     """Net position per member in integer cents: paid minus owed.
     Positive = the WG owes them money; negative = they owe the WG."""
@@ -624,7 +689,18 @@ def expense_to_dict(e):
             {'user': user_to_dict(s.user), 'amount': s.amount}
             for s in e.splits if s.user is not None
         ],
+        'is_recurring': e.recurring_id is not None,
         'created_at': e.created_at.isoformat(),
+    }
+
+def recurring_to_dict(r):
+    return {
+        'id': r.id, 'title': r.title, 'amount': r.amount,
+        'category': r.category or 'other',
+        'interval': r.interval,
+        'next_due': r.next_due.isoformat() if r.next_due else None,
+        'active': bool(r.active),
+        'paid_by': user_to_dict(r.paid_by_user),
     }
 
 def post_to_dict(p):
@@ -1221,6 +1297,7 @@ def api_finance():
     wg   = user.get_wg()
     if not wg:
         return jsonify({'error': 'Keine WG.'}), 404
+    materialize_recurring(wg)
     expenses = Expense.query.filter_by(wg_id=wg.id).order_by(Expense.created_at.desc()).all()
     debts    = calculate_debts(wg)
     balances = calculate_net_balances(wg)
@@ -1248,9 +1325,79 @@ def api_finance():
             SettlementPayment.query.filter_by(wg_id=wg.id)
                 .order_by(SettlementPayment.created_at.desc()).limit(20).all()
         ],
+        'recurring': [
+            recurring_to_dict(r) for r in
+            RecurringExpense.query.filter_by(wg_id=wg.id)
+                .order_by(RecurringExpense.next_due).all()
+        ],
         'total':    sum(e.amount for e in expenses),
         'members':  [user_to_dict(m) for m in wg.get_members()],
     })
+
+
+@api.route('/finance/recurring', methods=['POST'])
+@jwt_required()
+def api_add_recurring():
+    uid  = int(get_jwt_identity())
+    user = db.session.get(User, uid)
+    wg   = user.get_wg() if user else None
+    if not wg:
+        return jsonify({'error': 'Keine WG.'}), 404
+    data       = request.get_json() or {}
+    title      = data.get('title', '').strip()
+    amount_str = str(data.get('amount', '')).replace(',', '.')
+    category   = data.get('category', 'other')
+    interval   = data.get('interval', 'monthly')
+    due_str    = data.get('next_due', '')
+    if not title or not amount_str:
+        return jsonify({'error': 'Alle Felder erforderlich.'}), 400
+    try:
+        amount = float(amount_str)
+        if amount <= 0: raise ValueError
+    except ValueError:
+        return jsonify({'error': 'Ungültiger Betrag.'}), 400
+    if category not in EXPENSE_CATEGORIES:
+        category = 'other'
+    if interval not in RECURRING_INTERVALS:
+        interval = 'monthly'
+    next_due = datetime.utcnow().date()
+    if due_str:
+        try: next_due = datetime.strptime(due_str, '%Y-%m-%d').date()
+        except ValueError: pass
+    recurring = RecurringExpense(wg_id=wg.id, title=title, amount=round(amount, 2),
+                                 category=category, paid_by=uid,
+                                 interval=interval, next_due=next_due)
+    db.session.add(recurring)
+    db.session.commit()
+    return jsonify({'recurring': recurring_to_dict(recurring)}), 201
+
+
+@api.route('/finance/recurring/<int:rid>/toggle', methods=['POST'])
+@jwt_required()
+def api_toggle_recurring(rid):
+    uid  = get_jwt_identity()
+    user = db.session.get(User, uid)
+    wg   = user.get_wg() if user else None
+    recurring = db.session.get(RecurringExpense, rid)
+    if not wg or not recurring or recurring.wg_id != wg.id:
+        return jsonify({'error': 'Nicht gefunden.'}), 404
+    recurring.active = not recurring.active
+    db.session.commit()
+    return jsonify({'recurring': recurring_to_dict(recurring)})
+
+
+@api.route('/finance/recurring/<int:rid>', methods=['DELETE'])
+@jwt_required()
+def api_delete_recurring(rid):
+    uid  = get_jwt_identity()
+    user = db.session.get(User, uid)
+    wg   = user.get_wg() if user else None
+    recurring = db.session.get(RecurringExpense, rid)
+    if not wg or not recurring or recurring.wg_id != wg.id:
+        return jsonify({'error': 'Nicht gefunden.'}), 404
+    db.session.delete(recurring)
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 @api.route('/finance/settle', methods=['POST'])
@@ -1780,6 +1927,8 @@ def ensure_schema():
                 conn.execute(text("ALTER TABLE expenses ADD COLUMN category VARCHAR(30) DEFAULT 'other'"))
             if 'split_method' not in ecols:
                 conn.execute(text("ALTER TABLE expenses ADD COLUMN split_method VARCHAR(12) DEFAULT 'equal'"))
+            if 'recurring_id' not in ecols:
+                conn.execute(text("ALTER TABLE expenses ADD COLUMN recurring_id INTEGER"))
 
 
 def initialize_database():

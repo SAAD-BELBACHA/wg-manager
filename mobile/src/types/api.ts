@@ -58,7 +58,21 @@ export type Expense = {
   category: ExpenseCategory;
   split_method: SplitMethod;
   participants: ExpenseParticipant[];
+  is_recurring: boolean;
   created_at: string;
+};
+
+export type RecurringInterval = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+
+export type RecurringExpense = {
+  id: number;
+  title: string;
+  amount: number;
+  category: ExpenseCategory;
+  interval: RecurringInterval;
+  next_due: string | null;
+  active: boolean;
+  paid_by: User;
 };
 
 export type AuthResponse = {
@@ -114,6 +128,7 @@ export type FinanceResponse = {
   balances: MemberBalance[];
   my_balance: number;
   settlement_history: SettlementPayment[];
+  recurring: RecurringExpense[];
   total: number;
   members: User[];
 };
