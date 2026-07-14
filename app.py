@@ -129,6 +129,7 @@ class WG(db.Model):
     name        = db.Column(db.String(100), nullable=False)
     invite_code = db.Column(db.String(8),   unique=True, nullable=False)
     created_by  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    monthly_budget = db.Column(db.Float, nullable=True)
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)
 
     memberships    = db.relationship('WGMembership', backref='wg', lazy=True)
@@ -1330,9 +1331,128 @@ def api_finance():
             RecurringExpense.query.filter_by(wg_id=wg.id)
                 .order_by(RecurringExpense.next_due).all()
         ],
+        'month': _month_stats(wg, expenses),
         'total':    sum(e.amount for e in expenses),
         'members':  [user_to_dict(m) for m in wg.get_members()],
     })
+
+
+def _month_stats(wg, expenses):
+    now = datetime.utcnow()
+    month_start = datetime(now.year, now.month, 1)
+    prev_year, prev_month = (now.year - 1, 12) if now.month == 1 else (now.year, now.month - 1)
+    prev_start = datetime(prev_year, prev_month, 1)
+
+    month_total = 0.0
+    prev_total = 0.0
+    by_category = {}
+    for e in expenses:
+        if e.created_at >= month_start:
+            month_total += e.amount
+            cat = e.category or 'other'
+            by_category[cat] = by_category.get(cat, 0.0) + e.amount
+        elif prev_start <= e.created_at < month_start:
+            prev_total += e.amount
+
+    return {
+        'total': round(month_total, 2),
+        'prev_total': round(prev_total, 2),
+        'by_category': sorted(
+            [{'category': c, 'amount': round(a, 2)} for c, a in by_category.items()],
+            key=lambda x: x['amount'], reverse=True
+        ),
+        'budget': wg.monthly_budget,
+    }
+
+
+@api.route('/finance/budget', methods=['POST'])
+@jwt_required()
+def api_set_budget():
+    uid  = get_jwt_identity()
+    user = db.session.get(User, uid)
+    wg   = user.get_wg() if user else None
+    if not wg:
+        return jsonify({'error': 'Keine WG.'}), 404
+    data = request.get_json() or {}
+    raw = data.get('amount')
+    if raw in (None, '', 0, '0'):
+        wg.monthly_budget = None
+    else:
+        try:
+            amount = float(str(raw).replace(',', '.'))
+            if amount <= 0: raise ValueError
+        except ValueError:
+            return jsonify({'error': 'Ungültiger Betrag.'}), 400
+        wg.monthly_budget = round(amount, 2)
+    db.session.commit()
+    return jsonify({'budget': wg.monthly_budget})
+
+
+@api.route('/finance/export.csv', methods=['GET'])
+@jwt_required()
+def api_finance_export():
+    uid  = get_jwt_identity()
+    user = db.session.get(User, uid)
+    wg   = user.get_wg() if user else None
+    if not wg:
+        return jsonify({'error': 'Keine WG.'}), 404
+    import csv as _csv
+    import io as _io
+    buf = _io.StringIO()
+    writer = _csv.writer(buf)
+    writer.writerow(['date', 'title', 'category', 'amount', 'paid_by', 'split_method', 'participants'])
+    expenses = Expense.query.filter_by(wg_id=wg.id).order_by(Expense.created_at.desc()).all()
+    for e in expenses:
+        participants = '; '.join(
+            f"{s.user.username}={s.amount:.2f}" for s in e.splits if s.user is not None
+        )
+        writer.writerow([
+            e.created_at.date().isoformat(), e.title, e.category or 'other',
+            f'{e.amount:.2f}', e.paid_by_user.username if e.paid_by_user else '',
+            e.split_method or 'equal', participants,
+        ])
+    response = app.response_class(buf.getvalue(), mimetype='text/csv')
+    response.headers['Content-Disposition'] = 'attachment; filename=zofri-ausgaben.csv'
+    return response
+
+
+@api.route('/finance/remind', methods=['POST'])
+@jwt_required()
+def api_finance_remind():
+    uid  = int(get_jwt_identity())
+    user = db.session.get(User, uid)
+    wg   = user.get_wg() if user else None
+    if not wg:
+        return jsonify({'error': 'Keine WG.'}), 404
+    data = request.get_json() or {}
+    to_id = data.get('to_user')
+    amount_str = str(data.get('amount', '')).replace(',', '.')
+    try:
+        amount = float(amount_str)
+        if amount <= 0: raise ValueError
+    except ValueError:
+        return jsonify({'error': 'Ungültiger Betrag.'}), 400
+    member_ids = {m.id for m in wg.get_members()}
+    if to_id not in member_ids or to_id == uid:
+        return jsonify({'error': 'Ungültiger Empfänger.'}), 400
+    # Friendly, not naggy: at most one reminder per debtor per day.
+    since = datetime.utcnow() - timedelta(days=1)
+    recent = AppNotification.query.filter(
+        AppNotification.wg_id == wg.id,
+        AppNotification.user_id == to_id,
+        AppNotification.target == 'finance-reminder',
+        AppNotification.created_at > since,
+    ).first()
+    if recent:
+        return jsonify({'error': 'Heute wurde schon erinnert.'}), 429
+    notification = AppNotification(
+        wg_id=wg.id, user_id=to_id, target='finance-reminder',
+        title='Zahlungserinnerung',
+        body=f'{user.username} bittet dich, {amount:.2f} € auszugleichen.'
+    )
+    db.session.add(notification)
+    db.session.commit()
+    return jsonify({'success': True}), 201
 
 
 @api.route('/finance/recurring', methods=['POST'])
@@ -1929,6 +2049,12 @@ def ensure_schema():
                 conn.execute(text("ALTER TABLE expenses ADD COLUMN split_method VARCHAR(12) DEFAULT 'equal'"))
             if 'recurring_id' not in ecols:
                 conn.execute(text("ALTER TABLE expenses ADD COLUMN recurring_id INTEGER"))
+
+    if 'wgs' in inspector.get_table_names():
+        wcols = {c['name'] for c in inspector.get_columns('wgs')}
+        if 'monthly_budget' not in wcols:
+            with db.engine.begin() as conn:
+                conn.execute(text("ALTER TABLE wgs ADD COLUMN monthly_budget FLOAT"))
 
 
 def initialize_database():

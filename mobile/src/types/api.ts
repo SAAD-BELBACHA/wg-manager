@@ -129,8 +129,16 @@ export type FinanceResponse = {
   my_balance: number;
   settlement_history: SettlementPayment[];
   recurring: RecurringExpense[];
+  month: MonthStats;
   total: number;
   members: User[];
+};
+
+export type MonthStats = {
+  total: number;
+  prev_total: number;
+  by_category: { category: ExpenseCategory; amount: number }[];
+  budget: number | null;
 };
 
 export type HouseholdInfoResponse = {

@@ -1,8 +1,8 @@
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { apiRequest } from '@/api/client';
+import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, TextInput, View } from 'react-native';
+import { API_URL, apiRequest } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
@@ -76,6 +76,8 @@ export default function ExpensesScreen() {
   const [recAmount, setRecAmount] = useState('');
   const [recInterval, setRecInterval] = useState<RecurringInterval>('monthly');
   const [recCategory, setRecCategory] = useState<ExpenseCategory>('rent');
+  const [budgetInput, setBudgetInput] = useState('');
+  const [notice, setNotice] = useState('');
 
   const members = finance?.members ?? [];
   const meId = user?.id ?? null;
@@ -146,6 +148,61 @@ export default function ExpensesScreen() {
       setError(err instanceof Error ? err.message : t('expenses.createFailed'));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveBudget() {
+    setError('');
+    try {
+      await apiRequest('/finance/budget', {
+        method: 'POST',
+        token,
+        body: { amount: budgetInput.trim() ? budgetInput.replace(',', '.') : null }
+      });
+      setBudgetInput('');
+      loadFinance();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('expenses.budgetSaveFailed'));
+    }
+  }
+
+  async function exportCsv() {
+    setError('');
+    setNotice('');
+    try {
+      const response = await fetch(`${API_URL}/finance/export.csv`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error(t('expenses.exportCsvFailed'));
+      const text = await response.text();
+      if (Platform.OS === 'web') {
+        const blob = new Blob([text], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'zofri-ausgaben.csv';
+        link.click();
+        URL.revokeObjectURL(url);
+      } else {
+        await Share.share({ message: text, title: 'zofri-ausgaben.csv' });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('expenses.exportCsvFailed'));
+    }
+  }
+
+  async function remind(toId: number, value: number) {
+    setError('');
+    setNotice('');
+    try {
+      await apiRequest('/finance/remind', {
+        method: 'POST',
+        token,
+        body: { to_user: toId, amount: value.toFixed(2) }
+      });
+      setNotice(t('expenses.remindSent'));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('expenses.settleFailed'));
     }
   }
 
@@ -229,6 +286,72 @@ export default function ExpensesScreen() {
             <AppText variant="title" style={styles.heroValue}>{Math.abs(myBalance).toFixed(2)} €</AppText>
           )}
         </HeroCard>
+      ) : null}
+
+      {finance ? (
+        <Card>
+          <AppText variant="h2">{t('expenses.thisMonth')}</AppText>
+          <AppText variant="title">{finance.month.total.toFixed(2)} €</AppText>
+          <AppText variant="small" style={styles.sharedWith}>
+            {t('expenses.prevMonth', { amount: `${finance.month.prev_total.toFixed(2)} €` })}
+          </AppText>
+
+          {finance.month.budget ? (
+            (() => {
+              const pct = finance.month.total / (finance.month.budget || 1);
+              const fillColor = pct >= 1 ? colors.error : pct >= 0.8 ? colors.warning : colors.success;
+              const rest = (finance.month.budget || 0) - finance.month.total;
+              return (
+                <View style={{ gap: 6 }}>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${Math.min(100, pct * 100)}%`, backgroundColor: fillColor }]} />
+                  </View>
+                  <AppText variant="small" style={{ color: fillColor, fontWeight: '800' }}>
+                    {t('expenses.budgetUsed', { spent: `${finance.month.total.toFixed(2)} €`, budget: `${finance.month.budget.toFixed(2)} €` })}
+                    {' · '}
+                    {rest >= 0
+                      ? t('expenses.budgetLeft', { left: `${rest.toFixed(2)} €` })
+                      : t('expenses.budgetOver', { over: `${Math.abs(rest).toFixed(2)} €` })}
+                  </AppText>
+                </View>
+              );
+            })()
+          ) : (
+            <AppText variant="small" style={styles.sharedWith}>{t('expenses.noBudget')}</AppText>
+          )}
+
+          <View style={styles.budgetRow}>
+            <View style={[styles.valueBox, { flex: 1 }]}>
+              <TextInput
+                value={budgetInput}
+                onChangeText={setBudgetInput}
+                keyboardType="decimal-pad"
+                placeholder={t('expenses.budgetPlaceholder')}
+                placeholderTextColor={colors.textMuted}
+                style={styles.valueInput}
+              />
+              <AppText variant="small" style={styles.valueSuffix}>€</AppText>
+            </View>
+            <Button title={t('expenses.budgetLabel')} icon="bullseye" variant="secondary" onPress={saveBudget} />
+          </View>
+
+          {finance.month.by_category.length ? (
+            <View style={{ gap: spacing.sm }}>
+              {finance.month.by_category.map(entry => {
+                const max = finance.month.by_category[0].amount || 1;
+                return (
+                  <View key={entry.category} style={styles.catRow}>
+                    <AppText variant="small" style={styles.catLabel}>{t(CATEGORY_LABEL[entry.category] || 'expenses.catOther')}</AppText>
+                    <View style={styles.catTrack}>
+                      <View style={[styles.catFill, { width: `${(entry.amount / max) * 100}%` }]} />
+                    </View>
+                    <AppText variant="small" style={styles.catAmount}>{entry.amount.toFixed(2)} €</AppText>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
+        </Card>
       ) : null}
 
       <Card tone="soft">
@@ -346,8 +469,15 @@ export default function ExpensesScreen() {
                 icon="arrow-right-long"
                 actionLabel={t('expenses.markPaid')}
                 onAction={() => markSettlementPaid(s.from_user.id, s.to_user.id, s.amount)}
-              />
+              >
+                {s.to_user.id === meId ? (
+                  <Pressable onPress={() => remind(s.from_user.id, s.amount)} style={styles.remindLink}>
+                    <AppText variant="tiny" style={styles.remindText}>{t('expenses.remind')}</AppText>
+                  </Pressable>
+                ) : null}
+              </ListRow>
             )) : <EmptyState title={t('expenses.allSettledTitle')} body={t('expenses.allSettledBody')} icon="scale-balanced" tone="lime" />}
+            {notice ? <AppText variant="small" style={styles.notice}>{notice}</AppText> : null}
           </Card>
 
           <Card>
@@ -413,7 +543,14 @@ export default function ExpensesScreen() {
           </Card>
 
           <Card>
-            <AppText variant="h2">{t('expenses.recent')}</AppText>
+            <View style={styles.settleHeader}>
+              <AppText variant="h2">{t('expenses.recent')}</AppText>
+              {finance.expenses.length ? (
+                <Pressable onPress={exportCsv} style={styles.remindLink}>
+                  <AppText variant="tiny" style={styles.remindText}>{t('expenses.exportCsv')}</AppText>
+                </Pressable>
+              ) : null}
+            </View>
             {finance.expenses.length ? finance.expenses.map(expense => (
               <ListRow
                 key={expense.id}
@@ -496,6 +633,17 @@ function makeStyles(colors: ReturnType<typeof useThemeColors>) {
     heroValue: { color: '#FFFFFF' },
     heroBody: { color: 'rgba(255,255,255,0.9)', fontWeight: '600' },
     settleHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-    settleHint: { color: colors.textMuted, fontWeight: '600', flexShrink: 1, textAlign: 'right' }
+    settleHint: { color: colors.textMuted, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
+    progressTrack: { height: 10, borderRadius: 999, backgroundColor: colors.surfaceMuted, overflow: 'hidden', marginTop: spacing.sm },
+    progressFill: { height: '100%', borderRadius: 999 },
+    budgetRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+    catRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+    catLabel: { width: 92, color: colors.textMuted, fontWeight: '700' },
+    catTrack: { flex: 1, height: 8, borderRadius: 999, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
+    catFill: { height: '100%', borderRadius: 999, backgroundColor: colors.primary },
+    catAmount: { width: 68, textAlign: 'right', fontWeight: '800' },
+    remindLink: { paddingVertical: 4, paddingHorizontal: spacing.md, borderRadius: radii.pill, backgroundColor: colors.primarySoft },
+    remindText: { color: colors.primary, fontWeight: '900' },
+    notice: { color: colors.success, fontWeight: '800', marginTop: spacing.sm }
   });
 }

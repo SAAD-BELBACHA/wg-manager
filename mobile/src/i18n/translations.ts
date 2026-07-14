@@ -253,7 +253,20 @@ const de = {
     tapToPause: 'Tippen zum Pausieren/Fortsetzen',
     recurringBadge: 'Fixkosten',
     emptyRecurringTitle: 'Keine Fixkosten',
-    emptyRecurringBody: 'Miete, Strom oder Internet einmal anlegen — der Rest passiert automatisch.'
+    emptyRecurringBody: 'Miete, Strom oder Internet einmal anlegen — der Rest passiert automatisch.',
+    thisMonth: 'Dieser Monat',
+    prevMonth: 'Vormonat: {{amount}}',
+    budgetLabel: 'Monatsbudget',
+    budgetUsed: '{{spent}} von {{budget}}',
+    budgetLeft: '{{left}} übrig',
+    budgetOver: '{{over}} über Budget',
+    noBudget: 'Kein Budget gesetzt.',
+    budgetPlaceholder: 'z.B. 500',
+    budgetSaveFailed: 'Budget konnte nicht gespeichert werden.',
+    exportCsv: 'Als CSV exportieren',
+    exportCsvFailed: 'Export fehlgeschlagen.',
+    remind: 'Erinnern',
+    remindSent: 'Erinnerung gesendet ✓'
   },
   wg: {
     eyebrow: 'Home',
@@ -722,7 +735,20 @@ const en: typeof de = {
     tapToPause: 'Tap to pause/resume',
     recurringBadge: 'Fixed cost',
     emptyRecurringTitle: 'No fixed costs',
-    emptyRecurringBody: 'Set up rent, electricity or internet once — the rest happens automatically.'
+    emptyRecurringBody: 'Set up rent, electricity or internet once — the rest happens automatically.',
+    thisMonth: 'This month',
+    prevMonth: 'Last month: {{amount}}',
+    budgetLabel: 'Monthly budget',
+    budgetUsed: '{{spent}} of {{budget}}',
+    budgetLeft: '{{left}} left',
+    budgetOver: '{{over}} over budget',
+    noBudget: 'No budget set.',
+    budgetPlaceholder: 'e.g. 500',
+    budgetSaveFailed: 'Could not save the budget.',
+    exportCsv: 'Export as CSV',
+    exportCsvFailed: 'Export failed.',
+    remind: 'Remind',
+    remindSent: 'Reminder sent ✓'
   },
   wg: {
     eyebrow: 'Home',
