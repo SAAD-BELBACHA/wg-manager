@@ -377,6 +377,55 @@ class TrustEvent(db.Model):
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)
 
 
+class MoveChecklist(db.Model):
+    __tablename__ = 'move_checklists'
+    id         = db.Column(db.Integer, primary_key=True)
+    wg_id      = db.Column(db.Integer, db.ForeignKey('wgs.id'), nullable=False)
+    kind       = db.Column(db.String(10), nullable=False)  # move_in | move_out
+    title      = db.Column(db.String(100), nullable=False)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    items = db.relationship('ChecklistItem', backref='checklist', lazy=True,
+                            cascade='all, delete-orphan')
+
+
+class ChecklistItem(db.Model):
+    __tablename__ = 'checklist_items'
+    id           = db.Column(db.Integer, primary_key=True)
+    checklist_id = db.Column(db.Integer, db.ForeignKey('move_checklists.id'), nullable=False)
+    text_key     = db.Column(db.String(40), nullable=True)   # set for template items (translatable)
+    text         = db.Column(db.String(200), default='')      # raw text for custom items / fallback
+    done         = db.Column(db.Boolean, default=False)
+    position     = db.Column(db.Integer, default=0)
+    created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+# Templates seeded on checklist creation. text_key is translated client-side;
+# the German string is a fallback if a key is ever missing.
+CHECKLIST_TEMPLATES = {
+    'move_in': [
+        ('room_condition', 'Zimmerzustand dokumentiert (Fotos)'),
+        ('keys_received', 'Schlüssel erhalten'),
+        ('meters_readings', 'Zählerstände notiert'),
+        ('wifi_setup', 'WLAN eingerichtet'),
+        ('house_rules_read', 'Hausregeln gelesen'),
+        ('deposit_paid', 'Kaution überwiesen'),
+        ('address_registration', 'Adresse angemeldet'),
+    ],
+    'move_out': [
+        ('room_cleaned', 'Zimmer besenrein übergeben'),
+        ('room_condition', 'Zimmerzustand dokumentiert (Fotos)'),
+        ('keys_returned', 'Schlüssel zurückgegeben'),
+        ('meters_readings', 'Zählerstände notiert'),
+        ('subscriptions_cancelled', 'Abos/Verträge gekündigt'),
+        ('unpaid_balances', 'Offene WG-Beträge beglichen'),
+        ('deposit_back', 'Kaution zurück angefordert'),
+        ('address_deregistration', 'Adresse abgemeldet'),
+        ('handover_done', 'Übergabe abgeschlossen'),
+    ],
+}
+
+
 # ──────────────────────────────────────────────
 #  HELPERS
 # ──────────────────────────────────────────────
@@ -2020,6 +2069,110 @@ def api_trust_profile():
         'payment_reliability': paid,
         'events': [trust_event_to_dict(e) for e in events],
     })
+
+
+# ──────────────────────────────────────────────
+#  API — MOVE-IN / MOVE-OUT CHECKLISTS
+# ──────────────────────────────────────────────
+def checklist_to_dict(c):
+    items = sorted(c.items, key=lambda i: (i.position, i.id))
+    done = sum(1 for i in items if i.done)
+    return {
+        'id': c.id, 'kind': c.kind, 'title': c.title,
+        'created_at': c.created_at.isoformat(),
+        'done_count': done, 'total_count': len(items),
+        'items': [
+            {'id': i.id, 'text_key': i.text_key, 'text': i.text, 'done': i.done}
+            for i in items
+        ],
+    }
+
+
+@api.route('/checklists', methods=['GET'])
+@jwt_required()
+def api_checklists():
+    uid, user, wg = current_api_user_and_wg()
+    if not wg:
+        return jsonify({'error': 'Keine WG.'}), 404
+    lists = MoveChecklist.query.filter_by(wg_id=wg.id).order_by(MoveChecklist.created_at.desc()).all()
+    return jsonify({'checklists': [checklist_to_dict(c) for c in lists]})
+
+
+@api.route('/checklists', methods=['POST'])
+@jwt_required()
+def api_add_checklist():
+    uid, user, wg = current_api_user_and_wg()
+    if not wg:
+        return jsonify({'error': 'Keine WG.'}), 404
+    data  = request.get_json() or {}
+    kind  = data.get('kind', 'move_in')
+    if kind not in CHECKLIST_TEMPLATES:
+        return jsonify({'error': 'Ungültiger Typ.'}), 400
+    # Empty title = "use the localized default"; the client fills it from `kind`.
+    title = (data.get('title') or '').strip()
+    checklist = MoveChecklist(wg_id=wg.id, kind=kind, title=title, created_by=uid)
+    db.session.add(checklist)
+    db.session.flush()
+    for pos, (key, fallback) in enumerate(CHECKLIST_TEMPLATES[kind]):
+        db.session.add(ChecklistItem(checklist_id=checklist.id, text_key=key,
+                                     text=fallback, position=pos))
+    db.session.commit()
+    return jsonify({'checklist': checklist_to_dict(checklist)}), 201
+
+
+@api.route('/checklists/<int:cid>/items', methods=['POST'])
+@jwt_required()
+def api_add_checklist_item(cid):
+    uid, user, wg = current_api_user_and_wg()
+    checklist = db.session.get(MoveChecklist, cid)
+    if not wg or not checklist or checklist.wg_id != wg.id:
+        return jsonify({'error': 'Nicht gefunden.'}), 404
+    text = (request.get_json() or {}).get('text', '').strip()
+    if not text:
+        return jsonify({'error': 'Text erforderlich.'}), 400
+    pos = 1 + max([i.position for i in checklist.items], default=-1)
+    item = ChecklistItem(checklist_id=cid, text=text, text_key=None, position=pos)
+    db.session.add(item)
+    db.session.commit()
+    return jsonify({'checklist': checklist_to_dict(checklist)}), 201
+
+
+@api.route('/checklists/items/<int:iid>/toggle', methods=['POST'])
+@jwt_required()
+def api_toggle_checklist_item(iid):
+    uid, user, wg = current_api_user_and_wg()
+    item = db.session.get(ChecklistItem, iid)
+    checklist = db.session.get(MoveChecklist, item.checklist_id) if item else None
+    if not wg or not item or not checklist or checklist.wg_id != wg.id:
+        return jsonify({'error': 'Nicht gefunden.'}), 404
+    item.done = not item.done
+    db.session.commit()
+    return jsonify({'checklist': checklist_to_dict(checklist)})
+
+
+@api.route('/checklists/items/<int:iid>', methods=['DELETE'])
+@jwt_required()
+def api_delete_checklist_item(iid):
+    uid, user, wg = current_api_user_and_wg()
+    item = db.session.get(ChecklistItem, iid)
+    checklist = db.session.get(MoveChecklist, item.checklist_id) if item else None
+    if not wg or not item or not checklist or checklist.wg_id != wg.id:
+        return jsonify({'error': 'Nicht gefunden.'}), 404
+    db.session.delete(item)
+    db.session.commit()
+    return jsonify({'checklist': checklist_to_dict(checklist)})
+
+
+@api.route('/checklists/<int:cid>', methods=['DELETE'])
+@jwt_required()
+def api_delete_checklist(cid):
+    uid, user, wg = current_api_user_and_wg()
+    checklist = db.session.get(MoveChecklist, cid)
+    if not wg or not checklist or checklist.wg_id != wg.id:
+        return jsonify({'error': 'Nicht gefunden.'}), 404
+    db.session.delete(checklist)
+    db.session.commit()
+    return jsonify({'success': True})
 
 
 app.register_blueprint(api, url_prefix='/api')

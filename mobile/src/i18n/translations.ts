@@ -293,7 +293,9 @@ const de = {
     conflicts: 'Konflikte',
     conflictsSub: 'Sachlich klären',
     scan: 'Scan',
-    scanSub: 'Kassenzettel Workflow'
+    scanSub: 'Kassenzettel Workflow',
+    checklists: 'Ein- & Auszug',
+    checklistsSub: 'Umzug ohne Chaos'
   },
   profile: {
     eyebrow: 'Du',
@@ -483,6 +485,36 @@ const de = {
     receiptTitlePlain: 'Kassenbon',
     created: 'Ausgabe wurde nach deiner Prüfung erstellt.',
     createFailed: 'Ausgabe konnte nicht erstellt werden.'
+  },
+  checklists: {
+    eyebrow: 'Umzug',
+    title: 'Ein- & Auszug',
+    subtitle: 'Nichts vergessen bei Umzug und Übergabe.',
+    moveIn: 'Einzug',
+    moveOut: 'Auszug',
+    newMoveIn: 'Einzugs-Checkliste',
+    newMoveOut: 'Auszugs-Checkliste',
+    progress: '{{done}} von {{total}} erledigt',
+    addItem: 'Punkt hinzufügen',
+    addItemPlaceholder: 'Eigener Punkt',
+    loadError: 'Checklisten konnten nicht geladen werden.',
+    createFailed: 'Checkliste konnte nicht erstellt werden.',
+    emptyTitle: 'Noch keine Checkliste',
+    emptyBody: 'Leg eine Einzugs- oder Auszugs-Checkliste an — die wichtigsten Punkte sind schon drin.',
+    item_room_condition: 'Zimmerzustand dokumentiert (Fotos)',
+    item_keys_received: 'Schlüssel erhalten',
+    item_meters_readings: 'Zählerstände notiert',
+    item_wifi_setup: 'WLAN eingerichtet',
+    item_house_rules_read: 'Hausregeln gelesen',
+    item_deposit_paid: 'Kaution überwiesen',
+    item_address_registration: 'Adresse angemeldet',
+    item_room_cleaned: 'Zimmer besenrein übergeben',
+    item_keys_returned: 'Schlüssel zurückgegeben',
+    item_subscriptions_cancelled: 'Abos/Verträge gekündigt',
+    item_unpaid_balances: 'Offene WG-Beträge beglichen',
+    item_deposit_back: 'Kaution zurück angefordert',
+    item_address_deregistration: 'Adresse abgemeldet',
+    item_handover_done: 'Übergabe abgeschlossen'
   }
 };
 
@@ -775,7 +807,9 @@ const en: typeof de = {
     conflicts: 'Conflicts',
     conflictsSub: 'Sort it out calmly',
     scan: 'Scan',
-    scanSub: 'Receipt workflow'
+    scanSub: 'Receipt workflow',
+    checklists: 'Move in & out',
+    checklistsSub: 'Moving without chaos'
   },
   profile: {
     eyebrow: 'You',
@@ -965,6 +999,36 @@ const en: typeof de = {
     receiptTitlePlain: 'Receipt',
     created: 'Expense created after your review.',
     createFailed: 'Could not create expense.'
+  },
+  checklists: {
+    eyebrow: 'Moving',
+    title: 'Move in & out',
+    subtitle: 'Forget nothing when moving and handing over.',
+    moveIn: 'Move-in',
+    moveOut: 'Move-out',
+    newMoveIn: 'Move-in checklist',
+    newMoveOut: 'Move-out checklist',
+    progress: '{{done}} of {{total}} done',
+    addItem: 'Add item',
+    addItemPlaceholder: 'Custom item',
+    loadError: 'Could not load checklists.',
+    createFailed: 'Could not create the checklist.',
+    emptyTitle: 'No checklist yet',
+    emptyBody: 'Create a move-in or move-out checklist — the key items are already in.',
+    item_room_condition: 'Room condition documented (photos)',
+    item_keys_received: 'Keys received',
+    item_meters_readings: 'Meter readings noted',
+    item_wifi_setup: 'Wi-Fi set up',
+    item_house_rules_read: 'House rules read',
+    item_deposit_paid: 'Deposit paid',
+    item_address_registration: 'Address registered',
+    item_room_cleaned: 'Room handed over clean',
+    item_keys_returned: 'Keys returned',
+    item_subscriptions_cancelled: 'Subscriptions/contracts cancelled',
+    item_unpaid_balances: 'Open flatshare balances settled',
+    item_deposit_back: 'Deposit refund requested',
+    item_address_deregistration: 'Address deregistered',
+    item_handover_done: 'Handover completed'
   }
 };
 

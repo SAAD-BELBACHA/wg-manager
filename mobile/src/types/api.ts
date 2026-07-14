@@ -102,6 +102,25 @@ export type ShoppingResponse = {
   done: ShoppingItem[];
 };
 
+export type ChecklistKind = 'move_in' | 'move_out';
+
+export type ChecklistItem = {
+  id: number;
+  text_key: string | null;
+  text: string;
+  done: boolean;
+};
+
+export type MoveChecklist = {
+  id: number;
+  kind: ChecklistKind;
+  title: string;
+  created_at: string;
+  done_count: number;
+  total_count: number;
+  items: ChecklistItem[];
+};
+
 export type Settlement = {
   from_user: User;
   to_user: User;

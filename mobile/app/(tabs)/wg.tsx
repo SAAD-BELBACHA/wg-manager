@@ -118,6 +118,7 @@ export default function WgScreen() {
           <FeatureTile title={t('wg.mood')} subtitle={t('wg.moodSub')} icon="face-smile" tone="coral" onPress={() => router.push('/mood')} />
           <FeatureTile title={t('wg.conflicts')} subtitle={t('wg.conflictsSub')} icon="comments" tone="aqua" onPress={() => router.push('/conflicts')} />
           <FeatureTile title={t('wg.scan')} subtitle={t('wg.scanSub')} icon="camera" tone="lime" onPress={() => router.push('/receipt-scan')} />
+          <FeatureTile title={t('wg.checklists')} subtitle={t('wg.checklistsSub')} icon="box-archive" tone="primary" onPress={() => router.push('/checklists')} />
         </View>
       </Card>
     </Screen>
