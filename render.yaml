@@ -23,6 +23,13 @@ services:
           property: connectionString
       - key: MOBILE_APP_URL
         value: https://zofri-app.onrender.com
+      - key: BACKEND_URL
+        value: https://wg-manager-r5ni.onrender.com
+      # Optional: set in the dashboard to store uploaded documents/receipts
+      # durably. Format: cloudinary://<api_key>:<api_secret>@<cloud_name>
+      # Without it, uploads fall back to ephemeral local disk.
+      - key: CLOUDINARY_URL
+        sync: false
 
   - type: web
     name: zofri-app

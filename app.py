@@ -60,6 +60,17 @@ SMTP_USER = os.environ.get('SMTP_USER')
 SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
 SMTP_FROM = os.environ.get('SMTP_FROM', SMTP_USER or 'no-reply@zofri.app')
 
+# Object storage for uploaded documents/receipts. Set CLOUDINARY_URL
+# (cloudinary://<api_key>:<api_secret>@<cloud_name>) to store files durably in
+# the cloud; without it, files fall back to the local disk (fine locally, but
+# ephemeral on Render — wiped on each deploy). No fake persistence.
+CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL')
+STORAGE_READY = bool(CLOUDINARY_URL)
+if STORAGE_READY:
+    import cloudinary
+    import cloudinary.uploader
+    cloudinary.config(secure=True)  # reads CLOUDINARY_URL from the environment
+
 # CORS is only enforced by browsers (Expo web build), not native iOS/Android —
 # restrict it to the deployed web app plus local dev servers instead of "*".
 _default_origins = ','.join([
@@ -71,9 +82,30 @@ CORS_ORIGINS = [o.strip() for o in os.environ.get('CORS_ORIGINS', _default_origi
 
 ALLOWED_IMAGE = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
 ALLOWED_AUDIO = {'mp3', 'ogg', 'wav', 'webm', 'm4a', 'aac'}
+ALLOWED_DOC   = {'pdf', 'jpg', 'jpeg', 'png', 'webp', 'heic', 'doc', 'docx'}
 
 def allowed_file(filename, allowed_set):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_set
+
+
+def store_file(file, folder):
+    """Persist an uploaded file and return (url, kind). Uses Cloudinary when
+    configured, else the local disk. `kind` is 'image' or 'file'."""
+    fname = secure_filename(file.filename or 'upload')
+    ext = fname.rsplit('.', 1)[-1].lower() if '.' in fname else ''
+    kind = 'image' if ext in ALLOWED_IMAGE else 'file'
+    if STORAGE_READY:
+        result = cloudinary.uploader.upload(
+            file, folder=f'zofri/{folder}', resource_type='auto',
+            use_filename=True, unique_filename=True,
+        )
+        return result['secure_url'], kind
+    unique_name = f'{uuid.uuid4().hex}.{ext}' if ext else uuid.uuid4().hex
+    file.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_name))
+    # Absolute URL against the backend's own host, so the mobile app (served
+    # from a different origin) can open the file directly.
+    base = os.environ.get('BACKEND_URL', '').rstrip('/') or request.host_url.rstrip('/')
+    return f'{base}/uploads/{unique_name}', kind
 
 def send_email(to_address, subject, body):
     if not SMTP_HOST:
@@ -375,6 +407,24 @@ class TrustEvent(db.Model):
     explanation = db.Column(db.Text, default='')
     disputed    = db.Column(db.Boolean, default=False)
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class Document(db.Model):
+    __tablename__ = 'documents'
+    id          = db.Column(db.Integer, primary_key=True)
+    wg_id       = db.Column(db.Integer, db.ForeignKey('wgs.id'), nullable=False)
+    title       = db.Column(db.String(140), nullable=False)
+    category    = db.Column(db.String(30), default='other')
+    file_url    = db.Column(db.String(500), nullable=False)
+    file_type   = db.Column(db.String(10), default='file')  # image | file
+    uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    uploader    = db.relationship('User', foreign_keys=[uploaded_by])
+
+
+DOCUMENT_CATEGORIES = [
+    'contract', 'rules', 'utilities', 'deposit', 'protocol', 'receipt', 'other'
+]
 
 
 class MoveChecklist(db.Model):
@@ -2171,6 +2221,71 @@ def api_delete_checklist(cid):
     if not wg or not checklist or checklist.wg_id != wg.id:
         return jsonify({'error': 'Nicht gefunden.'}), 404
     db.session.delete(checklist)
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+# ──────────────────────────────────────────────
+#  API — DOCUMENTS
+# ──────────────────────────────────────────────
+def document_to_dict(d):
+    return {
+        'id': d.id, 'title': d.title, 'category': d.category or 'other',
+        'file_url': d.file_url, 'file_type': d.file_type or 'file',
+        'uploaded_by': user_to_dict(d.uploader) if d.uploader else None,
+        'created_at': d.created_at.isoformat(),
+    }
+
+
+@api.route('/documents', methods=['GET'])
+@jwt_required()
+def api_documents():
+    uid, user, wg = current_api_user_and_wg()
+    if not wg:
+        return jsonify({'error': 'Keine WG.'}), 404
+    docs = Document.query.filter_by(wg_id=wg.id).order_by(Document.created_at.desc()).all()
+    return jsonify({
+        'documents': [document_to_dict(d) for d in docs],
+        'storage_ready': STORAGE_READY,
+    })
+
+
+@api.route('/documents', methods=['POST'])
+@jwt_required()
+def api_add_document():
+    uid, user, wg = current_api_user_and_wg()
+    if not wg:
+        return jsonify({'error': 'Keine WG.'}), 404
+    title    = (request.form.get('title') or '').strip()
+    category = request.form.get('category', 'other')
+    file     = request.files.get('file')
+    if not title:
+        return jsonify({'error': 'Titel erforderlich.'}), 400
+    if not file or not file.filename:
+        return jsonify({'error': 'Datei erforderlich.'}), 400
+    if not allowed_file(file.filename, ALLOWED_DOC):
+        return jsonify({'error': 'Dateityp nicht erlaubt (PDF, Bild oder Word).'}), 400
+    if category not in DOCUMENT_CATEGORIES:
+        category = 'other'
+    try:
+        url, kind = store_file(file, f'wg-{wg.id}/documents')
+    except Exception:
+        return jsonify({'error': 'Upload fehlgeschlagen.'}), 502
+    doc = Document(wg_id=wg.id, title=title, category=category,
+                   file_url=url, file_type=kind, uploaded_by=uid)
+    db.session.add(doc)
+    db.session.commit()
+    return jsonify({'document': document_to_dict(doc)}), 201
+
+
+@api.route('/documents/<int:did>', methods=['DELETE'])
+@jwt_required()
+def api_delete_document(did):
+    uid, user, wg = current_api_user_and_wg()
+    doc = db.session.get(Document, did)
+    if not wg or not doc or doc.wg_id != wg.id:
+        return jsonify({'error': 'Nicht gefunden.'}), 404
+    db.session.delete(doc)
     db.session.commit()
     return jsonify({'success': True})
 

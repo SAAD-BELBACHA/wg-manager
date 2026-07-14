@@ -295,7 +295,9 @@ const de = {
     scan: 'Scan',
     scanSub: 'Kassenzettel Workflow',
     checklists: 'Ein- & Auszug',
-    checklistsSub: 'Umzug ohne Chaos'
+    checklistsSub: 'Umzug ohne Chaos',
+    documents: 'Dokumente',
+    documentsSub: 'Verträge & Unterlagen'
   },
   profile: {
     eyebrow: 'Du',
@@ -515,6 +517,32 @@ const de = {
     item_deposit_back: 'Kaution zurück angefordert',
     item_address_deregistration: 'Adresse abgemeldet',
     item_handover_done: 'Übergabe abgeschlossen'
+  },
+  documents: {
+    eyebrow: 'Ablage',
+    title: 'Dokumente',
+    subtitle: 'Mietvertrag, Hausregeln und wichtige Unterlagen an einem Ort.',
+    add: 'Dokument hochladen',
+    titleLabel: 'Titel',
+    titlePlaceholder: 'z.B. Mietvertrag',
+    category: 'Kategorie',
+    pickFile: 'Datei wählen',
+    fileChosen: 'Ausgewählt: {{name}}',
+    open: 'Öffnen',
+    uploadedBy: 'von {{name}} · {{date}}',
+    loadError: 'Dokumente konnten nicht geladen werden.',
+    uploadFailed: 'Upload fehlgeschlagen.',
+    needTitleFile: 'Titel und Datei sind erforderlich.',
+    emptyTitle: 'Noch keine Dokumente',
+    emptyBody: 'Lade Mietvertrag, Hausregeln oder Zählerfotos hoch — so hat sie jede/r griffbereit.',
+    ephemeralWarn: 'Cloud-Speicher ist noch nicht verbunden — Uploads sind vorerst nicht dauerhaft.',
+    catContract: 'Vertrag',
+    catRules: 'Hausregeln',
+    catUtilities: 'Nebenkosten',
+    catDeposit: 'Kaution',
+    catProtocol: 'Protokoll',
+    catReceipt: 'Beleg',
+    catOther: 'Sonstiges'
   }
 };
 
@@ -809,7 +837,9 @@ const en: typeof de = {
     scan: 'Scan',
     scanSub: 'Receipt workflow',
     checklists: 'Move in & out',
-    checklistsSub: 'Moving without chaos'
+    checklistsSub: 'Moving without chaos',
+    documents: 'Documents',
+    documentsSub: 'Contracts & paperwork'
   },
   profile: {
     eyebrow: 'You',
@@ -1029,6 +1059,32 @@ const en: typeof de = {
     item_deposit_back: 'Deposit refund requested',
     item_address_deregistration: 'Address deregistered',
     item_handover_done: 'Handover completed'
+  },
+  documents: {
+    eyebrow: 'Storage',
+    title: 'Documents',
+    subtitle: 'Rental agreement, house rules and key paperwork in one place.',
+    add: 'Upload document',
+    titleLabel: 'Title',
+    titlePlaceholder: 'e.g. Rental agreement',
+    category: 'Category',
+    pickFile: 'Choose file',
+    fileChosen: 'Selected: {{name}}',
+    open: 'Open',
+    uploadedBy: 'by {{name}} · {{date}}',
+    loadError: 'Could not load documents.',
+    uploadFailed: 'Upload failed.',
+    needTitleFile: 'Title and file are required.',
+    emptyTitle: 'No documents yet',
+    emptyBody: 'Upload the rental agreement, house rules or meter photos — so everyone has them at hand.',
+    ephemeralWarn: 'Cloud storage is not connected yet — uploads are not durable for now.',
+    catContract: 'Contract',
+    catRules: 'House rules',
+    catUtilities: 'Utilities',
+    catDeposit: 'Deposit',
+    catProtocol: 'Protocol',
+    catReceipt: 'Receipt',
+    catOther: 'Other'
   }
 };
 

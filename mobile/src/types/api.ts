@@ -102,6 +102,24 @@ export type ShoppingResponse = {
   done: ShoppingItem[];
 };
 
+export type DocumentCategory =
+  | 'contract' | 'rules' | 'utilities' | 'deposit' | 'protocol' | 'receipt' | 'other';
+
+export type WgDocument = {
+  id: number;
+  title: string;
+  category: DocumentCategory;
+  file_url: string;
+  file_type: 'image' | 'file';
+  uploaded_by: User | null;
+  created_at: string;
+};
+
+export type DocumentsResponse = {
+  documents: WgDocument[];
+  storage_ready: boolean;
+};
+
 export type ChecklistKind = 'move_in' | 'move_out';
 
 export type ChecklistItem = {
