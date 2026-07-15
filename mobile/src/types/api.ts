@@ -59,6 +59,8 @@ export type Expense = {
   split_method: SplitMethod;
   participants: ExpenseParticipant[];
   is_recurring: boolean;
+  receipt_url: string | null;
+  receipt_type: 'image' | 'file' | null;
   created_at: string;
 };
 

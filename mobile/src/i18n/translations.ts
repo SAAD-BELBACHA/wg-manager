@@ -266,7 +266,11 @@ const de = {
     exportCsv: 'Als CSV exportieren',
     exportCsvFailed: 'Export fehlgeschlagen.',
     remind: 'Erinnern',
-    remindSent: 'Erinnerung gesendet ✓'
+    remindSent: 'Erinnerung gesendet ✓',
+    attachReceipt: 'Beleg',
+    viewReceipt: 'Beleg ansehen',
+    removeReceipt: 'Beleg entfernen',
+    receiptFailed: 'Beleg konnte nicht angehängt werden.'
   },
   wg: {
     eyebrow: 'Home',
@@ -808,7 +812,11 @@ const en: typeof de = {
     exportCsv: 'Export as CSV',
     exportCsvFailed: 'Export failed.',
     remind: 'Remind',
-    remindSent: 'Reminder sent ✓'
+    remindSent: 'Reminder sent ✓',
+    attachReceipt: 'Receipt',
+    viewReceipt: 'View receipt',
+    removeReceipt: 'Remove receipt',
+    receiptFailed: 'Could not attach the receipt.'
   },
   wg: {
     eyebrow: 'Home',

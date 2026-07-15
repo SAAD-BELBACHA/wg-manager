@@ -1,8 +1,9 @@
 import { FontAwesome6 } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, TextInput, View } from 'react-native';
-import { API_URL, apiRequest } from '@/api/client';
+import * as DocumentPicker from 'expo-document-picker';
+import { ActivityIndicator, Linking, Platform, Pressable, Share, StyleSheet, TextInput, View } from 'react-native';
+import { API_URL, apiRequest, apiUpload } from '@/api/client';
 import { useAuth } from '@/auth/AuthContext';
 import { AppHeader } from '@/components/AppHeader';
 import { AppText } from '@/components/AppText';
@@ -262,6 +263,42 @@ export default function ExpensesScreen() {
       loadFinance();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('expenses.deleteFailed'));
+    }
+  }
+
+  function openUrl(url: string) {
+    if (Platform.OS === 'web') window.open(url, '_blank');
+    else Linking.openURL(url).catch(() => {});
+  }
+
+  async function attachReceipt(expenseId: number) {
+    setError('');
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/pdf', 'image/*'], copyToCacheDirectory: true
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+    try {
+      const formData = new FormData();
+      if (Platform.OS === 'web') {
+        const blob = await fetch(asset.uri).then(r => r.blob());
+        formData.append('file', blob, asset.name);
+      } else {
+        formData.append('file', { uri: asset.uri, name: asset.name, type: asset.mimeType || 'application/octet-stream' } as unknown as Blob);
+      }
+      await apiUpload(`/finance/${expenseId}/receipt`, formData, token);
+      loadFinance();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('expenses.receiptFailed'));
+    }
+  }
+
+  async function removeReceipt(expenseId: number) {
+    try {
+      await apiRequest(`/finance/${expenseId}/receipt`, { method: 'DELETE', token });
+      loadFinance();
+    } catch {
+      loadFinance();
     }
   }
 
@@ -563,6 +600,24 @@ export default function ExpensesScreen() {
                 <AppText variant="tiny" style={styles.sharedWith}>
                   {expense.is_recurring ? `↻ ${t('expenses.recurringBadge')} · ` : ''}{t(CATEGORY_LABEL[expense.category] || 'expenses.catOther')} · {t('expenses.sharedWith', { names: expense.participants.map(p => p.user.username).join(', ') })}
                 </AppText>
+                <View style={styles.receiptRow}>
+                  {expense.receipt_url ? (
+                    <>
+                      <Pressable onPress={() => openUrl(expense.receipt_url!)} style={styles.receiptChip}>
+                        <FontAwesome6 name="paperclip" size={11} color={colors.primary} />
+                        <AppText variant="tiny" style={styles.receiptChipText}>{t('expenses.viewReceipt')}</AppText>
+                      </Pressable>
+                      <Pressable onPress={() => removeReceipt(expense.id)} style={styles.receiptChipGhost}>
+                        <AppText variant="tiny" style={styles.receiptGhostText}>{t('expenses.removeReceipt')}</AppText>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <Pressable onPress={() => attachReceipt(expense.id)} style={styles.receiptChipGhost}>
+                      <FontAwesome6 name="paperclip" size={11} color={colors.textMuted} />
+                      <AppText variant="tiny" style={styles.receiptGhostText}>{t('expenses.attachReceipt')}</AppText>
+                    </Pressable>
+                  )}
+                </View>
               </ListRow>
             )) : <EmptyState title={t('expenses.emptyExpensesTitle')} body={t('expenses.emptyExpensesBody')} icon="receipt" tone="aqua" />}
           </Card>
@@ -644,6 +699,11 @@ function makeStyles(colors: ReturnType<typeof useThemeColors>) {
     catAmount: { width: 68, textAlign: 'right', fontWeight: '800' },
     remindLink: { paddingVertical: 4, paddingHorizontal: spacing.md, borderRadius: radii.pill, backgroundColor: colors.primarySoft },
     remindText: { color: colors.primary, fontWeight: '900' },
-    notice: { color: colors.success, fontWeight: '800', marginTop: spacing.sm }
+    notice: { color: colors.success, fontWeight: '800', marginTop: spacing.sm },
+    receiptRow: { flexDirection: 'row', gap: spacing.sm, marginTop: 6 },
+    receiptChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4, paddingHorizontal: spacing.md, borderRadius: radii.pill, backgroundColor: colors.primarySoft },
+    receiptChipText: { color: colors.primary, fontWeight: '800' },
+    receiptChipGhost: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 4, paddingHorizontal: spacing.md, borderRadius: radii.pill, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
+    receiptGhostText: { color: colors.textMuted, fontWeight: '700' }
   });
 }

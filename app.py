@@ -220,6 +220,8 @@ class Expense(db.Model):
     category     = db.Column(db.String(30), default='other')
     split_method = db.Column(db.String(12), default='equal')  # equal|exact|percent|shares
     recurring_id = db.Column(db.Integer, nullable=True)  # RecurringExpense that spawned this
+    receipt_url  = db.Column(db.String(500), nullable=True)
+    receipt_type = db.Column(db.String(10), nullable=True)   # image | file
     created_at   = db.Column(db.DateTime, default=datetime.utcnow)
     paid_by_user = db.relationship('User', foreign_keys=[paid_by])
     splits = db.relationship('ExpenseSplit', backref='expense', lazy=True,
@@ -790,6 +792,8 @@ def expense_to_dict(e):
             for s in e.splits if s.user is not None
         ],
         'is_recurring': e.recurring_id is not None,
+        'receipt_url': e.receipt_url,
+        'receipt_type': e.receipt_type,
         'created_at': e.created_at.isoformat(),
     }
 
@@ -1715,6 +1719,41 @@ def api_delete_expense(eid):
     return jsonify({'success': True})
 
 
+@api.route('/finance/<int:eid>/receipt', methods=['POST'])
+@jwt_required()
+def api_attach_receipt(eid):
+    uid, user, wg = current_api_user_and_wg()
+    expense = db.session.get(Expense, eid)
+    if not wg or not expense or expense.wg_id != wg.id:
+        return jsonify({'error': 'Nicht gefunden.'}), 404
+    file = request.files.get('file')
+    if not file or not file.filename:
+        return jsonify({'error': 'Datei erforderlich.'}), 400
+    if not allowed_file(file.filename, ALLOWED_DOC):
+        return jsonify({'error': 'Dateityp nicht erlaubt (PDF oder Bild).'}), 400
+    try:
+        url, kind = store_file(file, f'wg-{wg.id}/receipts')
+    except Exception:
+        return jsonify({'error': 'Upload fehlgeschlagen.'}), 502
+    expense.receipt_url = url
+    expense.receipt_type = kind
+    db.session.commit()
+    return jsonify({'expense': expense_to_dict(expense)})
+
+
+@api.route('/finance/<int:eid>/receipt', methods=['DELETE'])
+@jwt_required()
+def api_delete_receipt(eid):
+    uid, user, wg = current_api_user_and_wg()
+    expense = db.session.get(Expense, eid)
+    if not wg or not expense or expense.wg_id != wg.id:
+        return jsonify({'error': 'Nicht gefunden.'}), 404
+    expense.receipt_url = None
+    expense.receipt_type = None
+    db.session.commit()
+    return jsonify({'expense': expense_to_dict(expense)})
+
+
 # ──────────────────────────────────────────────
 #  API — FEED
 # ──────────────────────────────────────────────
@@ -2317,6 +2356,10 @@ def ensure_schema():
                 conn.execute(text("ALTER TABLE expenses ADD COLUMN split_method VARCHAR(12) DEFAULT 'equal'"))
             if 'recurring_id' not in ecols:
                 conn.execute(text("ALTER TABLE expenses ADD COLUMN recurring_id INTEGER"))
+            if 'receipt_url' not in ecols:
+                conn.execute(text("ALTER TABLE expenses ADD COLUMN receipt_url VARCHAR(500)"))
+            if 'receipt_type' not in ecols:
+                conn.execute(text("ALTER TABLE expenses ADD COLUMN receipt_type VARCHAR(10)"))
 
     if 'wgs' in inspector.get_table_names():
         wcols = {c['name'] for c in inspector.get_columns('wgs')}
