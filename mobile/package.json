@@ -8,7 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "export:web": "expo export --platform web",
+    "export:web": "expo export --platform web && node scripts/inject-pwa.mjs",
     "preview:web": "npx serve dist",
     "typecheck": "tsc --noEmit"
   },
