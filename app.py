@@ -119,7 +119,7 @@ def send_email(to_address, subject, body):
     message['To'] = to_address
     message.set_content(body)
     try:
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as smtp:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
             smtp.starttls()
             if SMTP_USER and SMTP_PASSWORD:
                 smtp.login(SMTP_USER, SMTP_PASSWORD)
