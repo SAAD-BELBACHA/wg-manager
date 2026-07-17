@@ -42,7 +42,7 @@ export default function WelcomeScreen() {
   }), [colors]);
 
   return (
-    <Screen scroll={false}>
+    <Screen>
       <View style={styles.heroWrap}>
         <View style={styles.mark}>
           <AppText variant="title" style={styles.markText}>Z</AppText>
