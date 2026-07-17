@@ -118,12 +118,21 @@ def send_email(to_address, subject, body):
     message['From'] = SMTP_FROM
     message['To'] = to_address
     message.set_content(body)
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as smtp:
-        smtp.starttls()
-        if SMTP_USER and SMTP_PASSWORD:
-            smtp.login(SMTP_USER, SMTP_PASSWORD)
-        smtp.send_message(message)
-    return True
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as smtp:
+            smtp.starttls()
+            if SMTP_USER and SMTP_PASSWORD:
+                smtp.login(SMTP_USER, SMTP_PASSWORD)
+            smtp.send_message(message)
+        logging.getLogger('zofri.mail').info('[email sent] to=%s subject=%s', to_address, subject)
+        return True
+    except Exception as exc:
+        # Don't let a mail-provider hiccup 500 the request; log the exact reason.
+        logging.getLogger('zofri.mail').error(
+            '[email delivery FAILED] to=%s host=%s:%s from=%s user=%s error=%r',
+            to_address, SMTP_HOST, SMTP_PORT, SMTP_FROM, SMTP_USER, exc
+        )
+        return False
 
 db = SQLAlchemy(app)
 jwt_manager = JWTManager(app)
