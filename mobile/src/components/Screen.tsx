@@ -8,6 +8,10 @@ type ScreenProps = PropsWithChildren<{
   scroll?: boolean;
 }>;
 
+// Keep content readable and centered on wide (web / tablet) viewports
+// instead of stretching edge-to-edge.
+const MAX_CONTENT_WIDTH = 520;
+
 export function Screen({ children, scroll = true }: ScreenProps) {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
@@ -19,26 +23,35 @@ export function Screen({ children, scroll = true }: ScreenProps) {
       flex: 1,
       backgroundColor: colors.background
     },
-    content: {
+    outer: {
       flexGrow: 1,
-      padding: spacing.xl,
-      paddingBottom: bottomPad,
+      alignItems: 'center',
+      paddingHorizontal: spacing.xl,
+      paddingTop: spacing.xl,
+      paddingBottom: bottomPad
+    },
+    inner: {
+      width: '100%',
+      maxWidth: MAX_CONTENT_WIDTH,
+      flexGrow: 1,
       gap: spacing.lg
     }
   }), [colors, bottomPad]);
+
+  const body = <View style={styles.inner}>{children}</View>;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       {scroll ? (
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={styles.outer}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {children}
+          {body}
         </ScrollView>
       ) : (
-        <View style={styles.content}>{children}</View>
+        <View style={styles.outer}>{body}</View>
       )}
     </SafeAreaView>
   );

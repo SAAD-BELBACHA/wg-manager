@@ -16,6 +16,7 @@ export default function WelcomeScreen() {
     heroWrap: {
       flex: 1,
       justifyContent: 'center',
+      alignItems: 'center',
       gap: spacing.lg
     },
     mark: {
@@ -28,6 +29,9 @@ export default function WelcomeScreen() {
     },
     markText: {
       color: colors.surface
+    },
+    centerText: {
+      textAlign: 'center'
     },
     heroTitle: {
       color: colors.surface
@@ -47,8 +51,8 @@ export default function WelcomeScreen() {
         <View style={styles.mark}>
           <AppText variant="title" style={styles.markText}>Z</AppText>
         </View>
-        <AppText variant="title">Zofri</AppText>
-        <AppText variant="muted">{t('welcome.tagline')}</AppText>
+        <AppText variant="title" style={styles.centerText}>Zofri</AppText>
+        <AppText variant="muted" style={styles.centerText}>{t('welcome.tagline')}</AppText>
       </View>
 
       <HeroCard accent="primary">
