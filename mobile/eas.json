@@ -13,12 +13,18 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://wg-manager-r5ni.onrender.com/api/v1"
+      },
       "ios": {
         "simulator": false
       }
     },
     "production": {
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://wg-manager-r5ni.onrender.com/api/v1"
+      },
       "ios": {
         "simulator": false
       }
