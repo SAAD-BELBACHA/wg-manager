@@ -28,6 +28,22 @@ const de = {
     login: 'Einloggen',
     register: 'Konto erstellen'
   },
+  onboarding: {
+    skip: 'Überspringen',
+    next: 'Weiter',
+    start: 'Konto erstellen',
+    haveAccount: 'Ich habe schon ein Konto',
+    slides: {
+      welcomeTitle: 'Willkommen bei Zofri',
+      welcomeBody: 'Deine WG an einem Ort: Aufgaben, Ausgaben, Einkäufe und mehr – ganz ohne Zettelchaos.',
+      step1Title: 'Schritt 1 · Konto erstellen',
+      step1Body: 'Melde dich in 30 Sekunden mit deiner E-Mail an. Kostenlos.',
+      step2Title: 'Schritt 2 · WG gründen oder beitreten',
+      step2Body: 'Erstelle eine neue WG oder tritt der deiner Mitbewohner:innen mit einem Einladungscode bei.',
+      step3Title: 'Schritt 3 · Loslegen',
+      step3Body: 'Aufgaben fair verteilen, Ausgaben teilen, Einkaufsliste füllen – Zofri rechnet den Rest.'
+    }
+  },
   auth: {
     loginEyebrow: 'Login',
     loginTitle: 'Willkommen zurück',
@@ -573,6 +589,22 @@ const en: typeof de = {
     heroBody: 'Run your flatshare without it feeling like an office.',
     login: 'Log in',
     register: 'Create account'
+  },
+  onboarding: {
+    skip: 'Skip',
+    next: 'Next',
+    start: 'Create account',
+    haveAccount: 'I already have an account',
+    slides: {
+      welcomeTitle: 'Welcome to Zofri',
+      welcomeBody: 'Your flatshare in one place: chores, expenses, shopping and more – no more sticky-note chaos.',
+      step1Title: 'Step 1 · Create an account',
+      step1Body: 'Sign up in 30 seconds with your email. Free.',
+      step2Title: 'Step 2 · Start or join a flatshare',
+      step2Body: 'Create a new flatshare, or join your flatmates’ one with an invite code.',
+      step3Title: 'Step 3 · Get going',
+      step3Body: 'Split chores fairly, share expenses, fill the shopping list – Zofri does the maths.'
+    }
   },
   auth: {
     loginEyebrow: 'Login',
